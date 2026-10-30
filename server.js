@@ -21,20 +21,13 @@ app.use('/api/assessment', assessmentRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/user', userFeaturesRoutes);
 
-// إعداد الخادم ليعمل مع ملفات الواجهة الأمامية (React) في بيئة الإنتاج
-if (process.env.NODE_ENV === 'production') {
-    // تحديد مجلد البناء الخاص بـ React
-    app.use(express.static(path.join(__dirname, 'client/dist')));
+// إعداد الخادم ليعمل مع ملفات الواجهة الأمامية (React) في بيئة الإنتاج أو التطوير المحلي
+app.use(express.static(path.join(__dirname, 'client/dist')));
 
-    // تحويل أي مسار غير موجود في الـ API إلى واجهة React
-    app.get('*', (req, res) => {
-        res.sendFile(path.resolve(__dirname, 'client', 'dist', 'index.html'));
-    });
-} else {
-    app.get('/', (req, res) => {
-        res.send('مرحباً بك في منصة التحليل النفسي والاجتماعي (بيئة التطوير)');
-    });
-}
+// تحويل أي مسار غير موجود في الـ API إلى واجهة React
+app.get('*', (req, res) => {
+    res.sendFile(path.resolve(__dirname, 'client', 'dist', 'index.html'));
+});
 
 // إعداد مهام مجدولة (Cron Jobs) لإرسال التقارير للإدارة
 const cron = require('node-cron');
