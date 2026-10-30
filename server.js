@@ -24,8 +24,8 @@ app.use('/api/user', userFeaturesRoutes);
 // إعداد الخادم ليعمل مع ملفات الواجهة الأمامية (React) في بيئة الإنتاج أو التطوير المحلي
 app.use(express.static(path.join(__dirname, 'client/dist')));
 
-// تحويل أي مسار غير موجود في الـ API إلى واجهة React
-app.get('*', (req, res) => {
+// تحويل أي مسار غير موجود في الـ API إلى واجهة React (تم تعديل هذا السطر ليتوافق مع الإصدارات الحديثة)
+app.get(/^(?!\/api).+/, (req, res) => {
     res.sendFile(path.resolve(__dirname, 'client', 'dist', 'index.html'));
 });
 
