@@ -49,4 +49,29 @@ router.post('/create-order/print', async (req, res) => {
     catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// مسار لالتقاط عملية الدفع وتأكيدها (Capture Order)
+router.post('/capture-order', async (req, res) => {
+    const { orderID, assessmentId, paymentType } = req.body;
+    const Assessment = require('../models/Assessment');
+
+    const request = new paypal.orders.OrdersCaptureRequest(orderID);
+    request.requestBody({});
+
+    try {
+        const capture = await client.execute(request);
+        
+        if (assessmentId) {
+            await Assessment.findByIdAndUpdate(assessmentId, { 
+                isPaid: true,
+                paymentType: paymentType // 'pdf', 'pdf_audio', or 'print'
+            });
+        }
+
+        res.json({ status: 'success', capture: capture.result });
+    } catch (err) {
+        console.error("خطأ في تأكيد الدفع:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

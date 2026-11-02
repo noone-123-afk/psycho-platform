@@ -26,6 +26,7 @@ const AssessmentSchema = new mongoose.Schema({
   followUp7DaysSent: { type: Boolean, default: false }, // هل تم إرسال إيميل المتابعة بعد أسبوع؟
   status: { type: String, enum: ['pending_review', 'approved', 'delivered'], default: 'pending_review' }, // حالة الكتاب للتدقيق
   bookContentRaw: { type: Object }, // حفظ نص الكتاب ككائن لتسهيل التعديل من الإدارة قبل الاعتماد
+  isPaid: { type: Boolean, default: false }, // حالة الدفع
   createdAt: { type: Date, default: Date.now }
 });
 
