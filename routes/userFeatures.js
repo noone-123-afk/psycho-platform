@@ -2,19 +2,34 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const Assessment = require('../models/Assessment');
+const EmailLog = require('../models/EmailLog');
+const { requireAuth } = require('../middleware/auth');
+const fs = require('node:fs/promises');
+const path = require('node:path');
 
 // مسار 1: "التدمير الذاتي للبيانات"
-router.delete('/self-destruct/:userId', async (req, res) => {
+router.delete('/self-destruct/:userId', requireAuth, async (req, res) => {
     const { userId } = req.params;
+    if (userId !== req.authUser.id) {
+        return res.status(403).json({ success: false, message: 'يمكنك حذف حسابك وبياناتك فقط.' });
+    }
 
     try {
-        // 1. حذف جميع تقييمات وكتب المستخدم من قاعدة البيانات
+        const assessments = await Assessment.find({ user: userId }).select('_id').lean();
+        const generatedFiles = assessments.flatMap(({ _id }) => [
+            `draft_${_id}.pdf`,
+            `draft_rel_${_id}.pdf`,
+            `final_${_id}.pdf`
+        ]);
+        await Promise.all(generatedFiles.map((fileName) =>
+            fs.rm(path.join(__dirname, '..', 'temp', fileName), { force: true })
+        ));
         await Assessment.deleteMany({ user: userId });
-        
-        // ملاحظة: في بيئة الإنتاج الفعلية يجب مسح ملفات الـ PDF المرتبطة به من مجلد /temp أو /uploads أيضاً
-        // باستخدام fs.unlinkSync(filePath)
+        await EmailLog.updateMany(
+            { user: userId },
+            { $set: { user: null, toEmail: 'deleted@redacted.invalid' } }
+        );
 
-        // 2. حذف حساب المستخدم نفسه
         await User.findByIdAndDelete(userId);
 
         res.json({ 

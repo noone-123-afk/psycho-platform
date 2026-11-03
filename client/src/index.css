@@ -211,6 +211,143 @@ code {
   color: #294d3a;
 }
 
+.account-page {
+  display: grid;
+  min-height: 100vh;
+  padding: 32px 16px;
+  place-items: center;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #fff 0%, #f5f0e6 100%);
+  font-family: var(--sans);
+}
+
+.account-card {
+  display: flex;
+  width: min(100%, 480px);
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+  padding: 32px;
+  border: 1px solid #e5e9e4;
+  border-radius: 18px;
+  background: #fff;
+  color: #24312b;
+  text-align: start;
+  box-shadow: 0 12px 36px rgba(37, 71, 59, 0.1);
+}
+
+.account-card h1 {
+  margin: 0;
+  color: #253b31;
+  font-size: 1.65rem;
+  letter-spacing: 0;
+}
+
+.account-home,
+.account-switch {
+  width: fit-content;
+  border: 0;
+  background: transparent;
+  color: #547863;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-card > label {
+  display: grid;
+  gap: 7px;
+  color: #34443b;
+  font-size: 0.9rem;
+}
+
+.account-card input:not([type='checkbox']) {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border: 1px solid #cfd8d1;
+  border-radius: 8px;
+  background: #fff;
+  color: #24312b;
+  font: inherit;
+}
+
+.account-tabs {
+  display: flex;
+  gap: 8px;
+}
+
+.account-tabs button {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #d5e5dc;
+  border-radius: 8px;
+  background: #f7f8f5;
+  color: #294d3a;
+  font: inherit;
+  cursor: pointer;
+}
+
+.account-tabs button[aria-pressed='true'] {
+  border-color: #547863;
+  background: #edf5f0;
+  font-weight: 700;
+}
+
+.account-submit {
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #547863;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.account-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.account-error {
+  color: #b91c1c;
+  font-size: 0.88rem;
+}
+
+.account-status {
+  color: #294d3a;
+  font-size: 0.9rem;
+}
+
+.settings-card {
+  width: min(100%, 560px);
+}
+
+.notification-fields {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 20px;
+}
+
+.notification-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid #e5e9e4;
+  border-radius: 10px;
+  color: #34443b;
+  font-size: 0.92rem;
+}
+
+.notification-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: #547863;
+}
+
 @media (max-width: 640px) {
   .assessment-foundation {
     margin-top: 60px;
@@ -218,6 +355,10 @@ code {
 
   .foundation-grid {
     grid-template-columns: 1fr;
+  }
+
+  .account-card {
+    padding: 24px 18px;
   }
 
   .foundation-card {

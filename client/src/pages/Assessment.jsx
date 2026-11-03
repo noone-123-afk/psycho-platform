@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, ChevronRight, ChevronLeft, CreditCard, Gift, FileText, Headphones, Download } from 'lucide-react';
+import { CheckCircle2, ChevronRight, ChevronLeft, FileText, Headphones, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from 'axios';
 import CrisisSupportNotice from '../components/CrisisSupportNotice';
 import { hasPotentialCrisisSignal } from '../utils/crisisSignals';
+import { hasAuthToken } from '../utils/auth';
 
 const Assessment = () => {
   const { t, i18n } = useTranslation();
@@ -23,6 +24,21 @@ const Assessment = () => {
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [freePreview, setFreePreview] = useState("");
   const [showCrisisNotice, setShowCrisisNotice] = useState(false);
+  const [deliveryPending, setDeliveryPending] = useState(false);
+  const [paypalClientId, setPaypalClientId] = useState('');
+  const [paymentMessage, setPaymentMessage] = useState('');
+
+  useEffect(() => {
+    if (!hasAuthToken()) {
+      navigate('/account?next=/assessment', { replace: true });
+      return;
+    }
+    axios.get('/api/payment/config')
+      .then((response) => setPaypalClientId(response.data.clientId))
+      .catch(() => setPaymentMessage(
+        i18n.language === 'ar' ? 'تعذر تحميل إعدادات الدفع.' : 'Unable to load payment settings.'
+      ));
+  }, [i18n.language, navigate]);
 
   // الأسئلة العلمية المرتبطة بالترجمة
   const questions = [
@@ -69,20 +85,18 @@ const Assessment = () => {
         setIsFinished(true);
         setIsGenerating(true);
         try {
-            // محاكاة الاتصال بالخادم لإنشاء الكتاب (Endpoint)
             const response = await axios.post('/api/assessment/generate-book', {
-                userId: "user_test_id", // يجب أن يأتي من سياق تسجيل الدخول الفعلي
-                userName: "عميل كريم",
-                userEmail: "test@example.com",
                 answers: submittedAnswers
             });
             
             if(response.data.success) {
-                setAssessmentId(response.data.assessmentId || "temp_id");
+                setAssessmentId(response.data.assessmentId);
                 setFreePreview(response.data.freePreview || t('testFinished'));
             }
         } catch (error) {
             console.error("خطأ في توليد الكتاب", error);
+            setPaymentMessage(error.response?.data?.message || t('testFinished'));
+            setIsFinished(false);
         } finally {
             setIsGenerating(false);
         }
@@ -95,20 +109,39 @@ const Assessment = () => {
     }
   };
 
-  const handleApprove = async (data, actions, paymentType) => {
+  const handleApprove = async (data) => {
       try {
           const res = await axios.post('/api/payment/capture-order', {
               orderID: data.orderID,
-              assessmentId: assessmentId,
-              paymentType: paymentType
+              assessmentId
           });
           if(res.data.status === 'success') {
-              // توفير رابط التحميل بعد الدفع الناجح
-              setDownloadUrl(`/download/final_${assessmentId}.pdf`); // مسار وهمي يعكس التخزين المؤقت
+              const file = await axios.get(res.data.downloadUrl, { responseType: 'blob' });
+              setDownloadUrl(URL.createObjectURL(file.data));
           }
       } catch (err) {
           console.error("Payment Capture Error", err);
-          alert("حدث خطأ أثناء معالجة الدفع.");
+          if (['paid_delivery_pending', 'delivery_in_progress'].includes(err.response?.data?.status)) {
+              setDeliveryPending(true);
+              setAssessmentId(err.response.data.assessmentId || assessmentId);
+              setPaymentMessage(err.response.data.message);
+          } else {
+              setPaymentMessage(err.response?.data?.message || "حدث خطأ أثناء معالجة الدفع.");
+          }
+      }
+  };
+
+  const retryReportDelivery = async () => {
+      setPaymentMessage('');
+      try {
+          const response = await axios.post('/api/payment/retry-delivery', { assessmentId });
+          const file = await axios.get(response.data.downloadUrl, { responseType: 'blob' });
+          setDownloadUrl(URL.createObjectURL(file.data));
+          setDeliveryPending(false);
+      } catch (error) {
+          setPaymentMessage(error.response?.data?.message || (
+            i18n.language === 'ar' ? 'تعذر إعادة إرسال التقرير.' : 'Unable to retry report delivery.'
+          ));
       }
   };
 
@@ -134,6 +167,14 @@ const Assessment = () => {
                       <Download size={20} /> {t('downloadReady')}
                   </a>
               </div>
+          ) : deliveryPending ? (
+              <div style={{ textAlign: 'center', padding: '30px' }}>
+                  <h2>{i18n.language === 'ar' ? 'تم تأكيد الدفع' : 'Payment confirmed'}</h2>
+                  <p role="status">{paymentMessage}</p>
+                  <button type="button" onClick={retryReportDelivery} style={{ ...payButtonStyle, marginTop: '20px' }}>
+                      {i18n.language === 'ar' ? 'إعادة محاولة إرسال التقرير' : 'Retry report delivery'}
+                  </button>
+              </div>
           ) : (
               <>
                   <CheckCircle2 color="#8b7355" size={60} style={{ margin: '0 auto 20px', display: 'block' }} />
@@ -145,7 +186,12 @@ const Assessment = () => {
                   <h4 style={{ textAlign: 'center', marginBottom: '20px' }}>{t('choosePackage')}</h4>
                   
                   {/* PayPal Provider (يجب وضع الـ Client ID الحقيقي الخاص بك هنا بدلاً من test) */}
-                  <PayPalScriptProvider options={{ "client-id": "test", currency: "USD" }}>
+                  {paymentMessage && <p role="alert" style={{ color: '#b91c1c' }}>{paymentMessage}</p>}
+                  {!paypalClientId ? (
+                    <p role="status" style={{ color: '#8b5e34' }}>
+                      {i18n.language === 'ar' ? 'الدفع غير متاح حالياً. يرجى المحاولة لاحقاً.' : 'Payments are not configured yet. Please try again later.'}
+                    </p>
+                  ) : <PayPalScriptProvider options={{ "client-id": paypalClientId, currency: "USD" }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                           
                           {/* باقة PDF */}
@@ -161,10 +207,8 @@ const Assessment = () => {
                                   <h3 style={{ margin: '0 0 10px', color: '#8b7355', textAlign: 'center' }}>$10</h3>
                                   <PayPalButtons 
                                       style={{ layout: "horizontal", height: 35 }} 
-                                      createOrder={(data, actions) => {
-                                          return axios.post('/api/payment/create-order/pdf').then(res => res.data.id);
-                                      }}
-                                      onApprove={(data, actions) => handleApprove(data, actions, 'pdf')}
+                                      createOrder={() => axios.post('/api/payment/create-order/pdf', { assessmentId }).then(res => res.data.id)}
+                                      onApprove={handleApprove}
                                   />
                               </div>
                           </div>
@@ -180,17 +224,13 @@ const Assessment = () => {
                               </div>
                               <div style={{ width: '200px' }}>
                                   <h3 style={{ margin: '0 0 10px', color: '#8b7355', textAlign: 'center' }}>$25</h3>
-                                  <PayPalButtons 
-                                      style={{ layout: "horizontal", height: 35 }} 
-                                      createOrder={(data, actions) => {
-                                          return axios.post('/api/payment/create-order/pdf-audio').then(res => res.data.id);
-                                      }}
-                                      onApprove={(data, actions) => handleApprove(data, actions, 'pdf_audio')}
-                                  />
+                                  <p style={{ color: '#777', textAlign: 'center', fontSize: '13px' }}>
+                                      {i18n.language === 'ar' ? 'غير متاحة حالياً' : 'Not available yet'}
+                                  </p>
                               </div>
                           </div>
                       </div>
-                  </PayPalScriptProvider>
+                  </PayPalScriptProvider>}
               </>
           )}
         </motion.div>
@@ -203,6 +243,7 @@ const Assessment = () => {
   // ----------------------------------------------------
   return (
     <div style={containerStyle(i18n.language)}>
+      {paymentMessage && <p role="alert" style={{ ...cardStyle, color: '#b91c1c' }}>{paymentMessage}</p>}
       {showCrisisNotice && (
         <CrisisSupportNotice onClose={() => setShowCrisisNotice(false)} />
       )}
@@ -329,7 +370,7 @@ const cardStyle = {
     marginTop: '20px'
 };
 
-const pricingCardStyle = (lang) => ({
+const pricingCardStyle = () => ({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',

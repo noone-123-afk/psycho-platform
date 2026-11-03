@@ -2,6 +2,8 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Globe, BookOpen, Users, Brain, Lightbulb, Heart, Feather } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
+import { hasAuthToken } from '../utils/auth';
 
 const Home = () => {
   const { t, i18n } = useTranslation();
@@ -35,6 +37,14 @@ const Home = () => {
           <Globe size={18} />
           {t('language')}
         </button>
+        <Link
+          to={hasAuthToken() ? '/settings' : '/account'}
+          style={{ marginInlineStart: '12px', color: '#547863', fontWeight: 700, textDecoration: 'none' }}
+        >
+          {hasAuthToken()
+            ? (i18n.language === 'ar' ? 'إعدادات البريد' : 'Email settings')
+            : (i18n.language === 'ar' ? 'تسجيل / دخول' : 'Sign in / Register')}
+        </Link>
       </header>
 
       {/* المحتوى الرئيسي (Hero Section) */}

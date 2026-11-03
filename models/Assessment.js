@@ -2,12 +2,7 @@ const mongoose = require('mongoose');
 
 const AssessmentSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  answers: [{
-    questionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Question' },
-    selectedOption: { type: String }, // الخيار الذي تم اختياره
-    textAnswer: { type: String }, // الإجابة النصية إن وجدت
-    score: { type: Number } // النقاط المحتسبة لهذه الإجابة
-  }],
+  answers: { type: mongoose.Schema.Types.Mixed, default: [] },
   generatedBooklet: { type: String }, // هنا سنحفظ النص الذي سيمثل "الكتاب المخصص" للمستخدم
   isCritical: { type: Boolean, default: false }, // لتحديد الحالات التي تستدعي تدخل طبي
   bookRating: { type: Number, min: 1, max: 5 }, // تقييم المستخدم للكتاب
@@ -24,9 +19,15 @@ const AssessmentSchema = new mongoose.Schema({
   isGift: { type: Boolean, default: false }, // هل هذا التقييم مدفوع كهدية من شخص آخر؟
   giftedBy: { type: String }, // اسم الشخص المهدي (إن وجد)
   followUp7DaysSent: { type: Boolean, default: false }, // هل تم إرسال إيميل المتابعة بعد أسبوع؟
+  followUp7DaysSendingAt: { type: Date },
   status: { type: String, enum: ['pending_review', 'approved', 'delivered'], default: 'pending_review' }, // حالة الكتاب للتدقيق
   bookContentRaw: { type: Object }, // حفظ نص الكتاب ككائن لتسهيل التعديل من الإدارة قبل الاعتماد
   isPaid: { type: Boolean, default: false }, // حالة الدفع
+  paypalOrderId: { type: String, index: true },
+  paidAt: { type: Date },
+  deliveryEmailSent: { type: Boolean, default: false },
+  deliveryComplete: { type: Boolean, default: false },
+  deliveryInProgressAt: { type: Date },
   createdAt: { type: Date, default: Date.now }
 });
 

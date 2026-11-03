@@ -8,25 +8,27 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // Routes
 const paymentRoutes = require('./routes/payment');
 const assessmentRoutes = require('./routes/assessment');
 const feedbackRoutes = require('./routes/feedback');
 const userFeaturesRoutes = require('./routes/userFeatures');
+const authRoutes = require('./routes/auth');
+const notificationRoutes = require('./routes/notifications');
 
+app.use('/api/auth', authRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/user', userFeaturesRoutes);
 
-// السماح بالوصول لمجلد temp لتحميل الكتب (PDF) بعد الدفع
 const fs = require('fs');
 if (!fs.existsSync(path.join(__dirname, 'temp'))) {
     fs.mkdirSync(path.join(__dirname, 'temp'));
 }
-app.use('/download', express.static(path.join(__dirname, 'temp')));
 
 // إعداد الخادم ليعمل مع ملفات الواجهة الأمامية (React) في بيئة الإنتاج أو التطوير المحلي
 app.use(express.static(path.join(__dirname, 'client/dist')));
@@ -36,25 +38,99 @@ app.get(/^(?!\/api).+/, (req, res) => {
     res.sendFile(path.resolve(__dirname, 'client', 'dist', 'index.html'));
 });
 
-// إعداد مهام مجدولة (Cron Jobs) لإرسال التقارير للإدارة
+// إعداد مهمة المتابعة، مع احترام تفضيلات كل مستخدم وتسجيل كل رسالة.
 const cron = require('node-cron');
-const { sendStatsReport, sendFollowUpEmail } = require('./services/emailService');
+const Assessment = require('./models/Assessment');
+const { sendFollowUpEmail } = require('./services/emailService');
+const User = require('./models/User');
+const { hashPassword } = require('./utils/passwords');
 
-// تقرير يومي (يعمل الساعة 11:59 مساءً كل يوم)
-cron.schedule('59 23 * * *', async () => {
-    const mockStats = { visitors: 150, booksGenerated: 12, topSection: 'اختبار القلق' };
-    await sendStatsReport('اليومي', mockStats);
-});
+async function provisionAdministrator() {
+    const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+    const password = process.env.ADMIN_PASSWORD;
+    if (!email || !password) {
+        console.warn('Administrator account was not provisioned; set ADMIN_EMAIL and ADMIN_PASSWORD');
+        return;
+    }
+    if (password.length < 12 || Buffer.byteLength(process.env.AUTH_TOKEN_SECRET || '', 'utf8') < 32) {
+        throw new Error('ADMIN_PASSWORD must be at least 12 characters and AUTH_TOKEN_SECRET at least 32 bytes');
+    }
+    await User.findOneAndUpdate(
+        { email },
+        {
+            $set: {
+                isAdmin: true,
+                emailVerified: true,
+                passwordHash: await hashPassword(password)
+            },
+            $setOnInsert: {
+                name: 'Administrator',
+                language: 'ar'
+            }
+        },
+        { upsert: true, new: true, runValidators: true }
+    );
+}
 
-// تقرير شهري (يعمل يوم 1 من كل شهر)
-cron.schedule('0 0 1 * *', async () => {
-    const mockStats = { visitors: 4500, booksGenerated: 320, topSection: 'تحليل الشخصية الشامل' };
-    await sendStatsReport('الشهري', mockStats);
-});
-
-// إرسال إيميل متابعة آلي بعد 7 أيام من شراء الكتاب
 cron.schedule('0 12 * * *', async () => {
-    console.log("جاري فحص المستخدمين الذين أتموا 7 أيام لإرسال إيميل المتابعة...");
+    try {
+        const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const assessments = await Assessment.find({
+            isPaid: true,
+            status: { $in: ['approved', 'delivered'] },
+            followUp7DaysSent: false,
+            paidAt: { $lte: cutoff }
+        }).populate('user', 'name email language notificationPreferences');
+
+        for (const assessment of assessments) {
+            const user = assessment.user;
+            const staleClaim = new Date(Date.now() - 30 * 60 * 1000);
+            const claimedAssessment = await Assessment.findOneAndUpdate(
+                {
+                    _id: assessment.id,
+                    followUp7DaysSent: false,
+                    $or: [
+                        { followUp7DaysSendingAt: { $exists: false } },
+                        { followUp7DaysSendingAt: { $lt: staleClaim } }
+                    ]
+                },
+                { $set: { followUp7DaysSendingAt: new Date() } },
+                { new: true }
+            );
+            if (!claimedAssessment) {
+                continue;
+            }
+            if (!user || user.notificationPreferences?.followUpEmails === false) {
+                if (user) {
+                    await Assessment.updateOne(
+                        { _id: claimedAssessment.id },
+                        { $set: { followUp7DaysSent: true }, $unset: { followUp7DaysSendingAt: 1 } }
+                    );
+                } else {
+                    await Assessment.updateOne(
+                        { _id: claimedAssessment.id },
+                        { $unset: { followUp7DaysSendingAt: 1 } }
+                    );
+                }
+                continue;
+            }
+            try {
+                await sendFollowUpEmail(user.email, user.name, user.id, user.language, claimedAssessment.id);
+                await Assessment.updateOne(
+                    { _id: claimedAssessment.id },
+                    { $set: { followUp7DaysSent: true }, $unset: { followUp7DaysSendingAt: 1 } }
+                );
+            } catch (error) {
+                await Assessment.updateOne(
+                    { _id: claimedAssessment.id },
+                    { $unset: { followUp7DaysSendingAt: 1 } }
+                );
+                console.error(`Follow-up email failed for assessment ${assessment.id}:`, error.message);
+            }
+        }
+    } catch (error) {
+        console.error('Follow-up email job failed:', error.message);
+    }
 });
 
 // تحديد المنفذ ورابط قاعدة البيانات
@@ -68,8 +144,9 @@ app.listen(PORT, () => {
 
 // 2. الاتصال بقاعدة البيانات MongoDB في الخلفية
 mongoose.connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('تم الاتصال بقاعدة البيانات بنجاح');
+    await provisionAdministrator();
   })
   .catch((error) => {
     console.error('خطأ في الاتصال بقاعدة البيانات:', error.message);

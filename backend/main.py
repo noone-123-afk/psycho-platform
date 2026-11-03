@@ -1,10 +1,13 @@
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from collections.abc import Coroutine
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
-from typing import Annotated, AsyncIterator, Literal
+from typing import Annotated, Any, AsyncIterator, Literal
+from urllib.parse import quote, urlsplit
 from uuid import UUID, uuid4
 
 import asyncpg
@@ -25,7 +28,11 @@ from services.paypal_service import (
 )
 from services.crisis_detector import detect_crisis, get_helpline_by_country
 from services.pdf_generator import generate_book_pdf
-from services.crisis_detector import detect_crisis, get_helpline_by_country
+from services.email_service import (
+    build_assessment_url,
+    send_book_ready_email,
+    send_welcome_email,
+)
 from utils.translations import get_text
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
@@ -40,6 +47,8 @@ DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173,http://127.0.0.1:5173,"
     "http://localhost:3000,http://127.0.0.1:3000"
 )
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000").rstrip("/")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000").rstrip("/")
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CORS_ORIGINS", DEFAULT_CORS_ORIGINS).split(",")
@@ -55,9 +64,13 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("SECRET_KEY must be configured with at least 32 bytes")
 
     app.state.db_pool = await asyncpg.create_pool(DATABASE_URL)
+    app.state.email_tasks = set()
     try:
         yield
     finally:
+        email_tasks = tuple(app.state.email_tasks)
+        if email_tasks:
+            await asyncio.gather(*email_tasks, return_exceptions=True)
         await app.state.db_pool.close()
 
 
@@ -82,6 +95,114 @@ async def get_db() -> AsyncIterator[asyncpg.Connection]:
         )
     async with pool.acquire() as connection:
         yield connection
+
+
+def schedule_email_task(
+    coroutine: Coroutine[Any, Any, None],
+    task_name: str,
+) -> None:
+    tasks: set[asyncio.Task[Any]] = app.state.email_tasks
+    task = asyncio.create_task(coroutine, name=task_name)
+    tasks.add(task)
+
+    def finish(completed_task: asyncio.Task[Any]) -> None:
+        tasks.discard(completed_task)
+        if completed_task.cancelled():
+            logger.warning("%s was cancelled before completion", task_name)
+            return
+        error = completed_task.exception()
+        if error is not None:
+            logger.error(
+                "%s failed",
+                task_name,
+                exc_info=(type(error), error, error.__traceback__),
+            )
+
+    task.add_done_callback(finish)
+
+
+async def deliver_welcome_email(
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    email: str,
+    full_name: str,
+    language: str,
+) -> None:
+    async with pool.acquire() as connection:
+        preferences = await connection.fetchrow(
+            "SELECT welcome_email FROM notification_preferences WHERE user_id = $1",
+            user_id,
+        )
+        if preferences is not None and not preferences["welcome_email"]:
+            return
+        await send_welcome_email(
+            connection,
+            email,
+            full_name,
+            language,
+            build_assessment_url(FRONTEND_URL),
+            user_id,
+        )
+
+
+def create_email_download_url(book_id: UUID, user_id: UUID) -> str:
+    if not SECRET_KEY:
+        raise RuntimeError("SECRET_KEY is not configured")
+    parsed_base = urlsplit(BACKEND_URL)
+    if (
+        parsed_base.scheme not in {"http", "https"}
+        or not parsed_base.netloc
+        or parsed_base.username
+        or parsed_base.password
+        or parsed_base.query
+        or parsed_base.fragment
+    ):
+        raise RuntimeError("BACKEND_URL must be an absolute HTTP(S) base URL")
+    if parsed_base.scheme != "https" and parsed_base.hostname not in {
+        "localhost",
+        "127.0.0.1",
+    }:
+        raise RuntimeError("BACKEND_URL must use HTTPS outside local development")
+
+    token = jwt.encode(
+        {
+            "sub": str(user_id),
+            "book_id": str(book_id),
+            "purpose": "email_book_download",
+            "exp": datetime.now(timezone.utc) + timedelta(days=7),
+        },
+        SECRET_KEY,
+        algorithm=ALGORITHM,
+    )
+    return (
+        f"{BACKEND_URL}/api/books/{book_id}/email-download"
+        f"?token={quote(token, safe='')}"
+    )
+
+
+async def deliver_book_ready_email(
+    pool: asyncpg.Pool,
+    user_id: UUID,
+    email: str,
+    full_name: str,
+    language: str,
+    book_id: UUID,
+) -> None:
+    async with pool.acquire() as connection:
+        preferences = await connection.fetchrow(
+            "SELECT book_ready_email FROM notification_preferences WHERE user_id = $1",
+            user_id,
+        )
+        if preferences is not None and not preferences["book_ready_email"]:
+            return
+        await send_book_ready_email(
+            connection,
+            email,
+            full_name,
+            language,
+            create_email_download_url(book_id, user_id),
+            user_id,
+        )
 
 
 def hash_password(password: str) -> str:
@@ -135,7 +256,7 @@ async def get_current_user(
         raise unauthorized from None
 
     user = await db.fetchrow(
-        "SELECT id, full_name, language, country_code, consent_signed FROM users "
+        "SELECT id, email, full_name, language, country_code, consent_signed FROM users "
         "WHERE id = $1 AND is_active = TRUE",
         user_id,
     )
@@ -149,6 +270,7 @@ class UserRegister(BaseModel):
     password: str = Field(min_length=12, max_length=72)
     full_name: str = Field(min_length=1, max_length=255)
     country_code: str = Field(min_length=2, max_length=3)
+    language: Literal["ar", "en"] = "ar"
 
     @field_validator("password")
     @classmethod
@@ -190,6 +312,13 @@ class PersonalityAnswers(BaseModel):
 class HealthScreening(BaseModel):
     phq9: list[ScreeningResponse] = Field(min_length=9, max_length=9)
     gad7: list[ScreeningResponse] = Field(min_length=7, max_length=7)
+
+
+class NotificationPreferences(BaseModel):
+    welcome_email: bool = True
+    book_ready_email: bool = True
+    follow_up_emails: bool = True
+    marketing_emails: bool = False
 
 
 async def get_active_session(
@@ -261,17 +390,24 @@ async def register(
         async with db.transaction():
             user_id = await db.fetchval(
                 """
-                INSERT INTO users (email, password_hash, full_name, country_code)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO users (
+                    email, password_hash, full_name, country_code, language
+                )
+                VALUES ($1, $2, $3, $4, $5)
                 RETURNING id
                 """,
                 email,
                 hash_password(user.password),
                 full_name,
                 country_code,
+                user.language,
             )
             await db.execute(
                 "INSERT INTO assessment_sessions (user_id) VALUES ($1)",
+                user_id,
+            )
+            await db.execute(
+                "INSERT INTO notification_preferences (user_id) VALUES ($1)",
                 user_id,
             )
     except asyncpg.UniqueViolationError:
@@ -280,9 +416,21 @@ async def register(
             detail="Email already registered",
         ) from None
 
+    schedule_email_task(
+        deliver_welcome_email(
+            app.state.db_pool,
+            user_id,
+            email,
+            full_name,
+            user.language,
+        ),
+        "welcome_email",
+    )
+
     return {
         "access_token": create_access_token(user_id),
         "token_type": "bearer",
+        "welcome_email": "scheduled",
     }
 
 
@@ -307,6 +455,51 @@ async def update_consent(
         "status": "consent updated",
         "message": get_text("consent_updated", lang),
     }
+
+
+@app.get("/api/notifications/preferences")
+async def get_notification_preferences(
+    current_user: Annotated[asyncpg.Record, Depends(get_current_user)],
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+):
+    preferences = await db.fetchrow(
+        """
+        SELECT welcome_email, book_ready_email, follow_up_emails, marketing_emails
+        FROM notification_preferences WHERE user_id = $1
+        """,
+        current_user["id"],
+    )
+    if preferences is None:
+        return NotificationPreferences().model_dump()
+    return dict(preferences)
+
+
+@app.put("/api/notifications/preferences")
+async def update_notification_preferences(
+    preferences: NotificationPreferences,
+    current_user: Annotated[asyncpg.Record, Depends(get_current_user)],
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+):
+    await db.execute(
+        """
+        INSERT INTO notification_preferences (
+            user_id, welcome_email, book_ready_email, follow_up_emails,
+            marketing_emails, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, NOW())
+        ON CONFLICT (user_id) DO UPDATE SET
+            welcome_email = EXCLUDED.welcome_email,
+            book_ready_email = EXCLUDED.book_ready_email,
+            follow_up_emails = EXCLUDED.follow_up_emails,
+            marketing_emails = EXCLUDED.marketing_emails,
+            updated_at = NOW()
+        """,
+        current_user["id"],
+        preferences.welcome_email,
+        preferences.book_ready_email,
+        preferences.follow_up_emails,
+        preferences.marketing_emails,
+    )
+    return {"status": "preferences updated"}
 
 
 @app.post("/api/assessment/demographics")
@@ -784,10 +977,23 @@ async def capture_order_endpoint(
             book["session_id"],
         )
 
+    schedule_email_task(
+        deliver_book_ready_email(
+            app.state.db_pool,
+            current_user["id"],
+            current_user["email"],
+            current_user["full_name"],
+            user_data["language"],
+            book["id"],
+        ),
+        "book_ready_email",
+    )
+
     return {
         "status": "success",
         "book_id": str(book["id"]),
         "download_url": download_url,
+        "book_ready_email": "scheduled",
     }
 
 
@@ -835,4 +1041,73 @@ async def download_book(
         path=file_path,
         media_type="application/pdf",
         filename=f"personal-book-{book_id}.pdf",
+    )
+
+
+@app.get("/api/books/{book_id}/email-download")
+async def download_book_from_email(
+    book_id: UUID,
+    db: Annotated[asyncpg.Connection, Depends(get_db)],
+    token: str = Query(min_length=1, max_length=4096),
+):
+    if not SECRET_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+            options={"require": ["exp", "sub", "book_id", "purpose"]},
+        )
+        user_id = UUID(payload["sub"])
+        token_book_id = UUID(payload["book_id"])
+    except (jwt.PyJWTError, KeyError, TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        ) from None
+
+    if token_book_id != book_id or payload["purpose"] != "email_book_download":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+
+    book = await db.fetchrow(
+        """
+        SELECT payment_status, pdf_url
+        FROM generated_books
+        WHERE id = $1 AND user_id = $2
+        """,
+        book_id,
+        user_id,
+    )
+    expected_url = f"/api/books/{book_id}/download"
+    file_path = GENERATED_BOOKS_DIR / f"book_{book_id}.pdf"
+    if (
+        book is None
+        or book["payment_status"] != "completed"
+        or book["pdf_url"] != expected_url
+        or not file_path.is_file()
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Book not found",
+        )
+
+    await db.execute(
+        "UPDATE generated_books SET download_count = download_count + 1 WHERE id = $1",
+        book_id,
+    )
+    return FileResponse(
+        path=file_path,
+        media_type="application/pdf",
+        filename=f"personal-book-{book_id}.pdf",
+        headers={
+            "Cache-Control": "no-store",
+            "Referrer-Policy": "no-referrer",
+        },
     )

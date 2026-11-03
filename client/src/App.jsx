@@ -5,6 +5,9 @@ import Home from './pages/Home'
 import Assessment from './pages/Assessment'
 import AdminDashboard from './pages/AdminDashboard'
 import CrisisPage from './pages/Crisis'
+import Account from './pages/Account'
+import NotificationSettings from './pages/NotificationSettings'
+import VerifyEmail from './pages/VerifyEmail'
 
 // مكون مساعد لتحديث لغة واتجاه الصفحة ومراقبة التنقل
 const AppWrapper = () => {
@@ -29,6 +32,9 @@ const AppWrapper = () => {
         <Route path="/assessment" element={<Assessment />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/crisis" element={<CrisisPage />} />
+        <Route path="/account" element={<Account />} />
+        <Route path="/settings" element={<NotificationSettings />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
       </Routes>
       {location.pathname !== '/crisis' && (
         <Link

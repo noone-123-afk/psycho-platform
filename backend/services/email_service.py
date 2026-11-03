@@ -1,7 +1,5 @@
 import asyncio
-import html
 import os
-import re
 import smtplib
 import ssl
 from email import encoders
@@ -11,6 +9,10 @@ from email.mime.text import MIMEText
 from email.utils import formataddr, parseaddr
 from pathlib import Path
 from typing import Mapping, Protocol
+from uuid import UUID
+from urllib.parse import urlsplit, urlunsplit
+
+from jinja2 import Environment, StrictUndefined, select_autoescape
 
 
 class EmailDatabase(Protocol):
@@ -18,7 +20,10 @@ class EmailDatabase(Protocol):
 
 
 EMAIL_TEMPLATE_DIR = Path(__file__).resolve().parent.parent / "templates" / "emails"
-PLACEHOLDER_PATTERN = re.compile(r"{{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*}}")
+EMAIL_TEMPLATE_ENV = Environment(
+    autoescape=select_autoescape(("html", "xml")),
+    undefined=StrictUndefined,
+)
 
 
 class EmailConfigurationError(RuntimeError):
@@ -153,16 +158,18 @@ class EmailService:
         subject: str,
         status: str,
         error_code: str | None = None,
+        user_id: UUID | None = None,
     ) -> None:
         await db.execute(
             """
-            INSERT INTO email_logs (to_email, subject, status, error_code)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO email_logs (to_email, subject, status, error_code, user_id)
+            VALUES ($1, $2, $3, $4, $5)
             """,
             to_email,
             subject,
             status,
             error_code,
+            user_id,
         )
 
     async def send_email(
@@ -172,6 +179,7 @@ class EmailService:
         subject: str,
         html_content: str,
         attachments: list[str] | None = None,
+        user_id: UUID | None = None,
     ) -> None:
         try:
             await asyncio.to_thread(
@@ -188,6 +196,7 @@ class EmailService:
                 subject,
                 "failed",
                 type(error).__name__,
+                user_id,
             )
             raise
         except (smtplib.SMTPException, OSError) as error:
@@ -197,10 +206,11 @@ class EmailService:
                 subject,
                 "failed",
                 type(error).__name__,
+                user_id,
             )
             raise EmailDeliveryError("SMTP email delivery failed") from error
 
-        await self.log_email(db, to_email, subject, "sent")
+        await self.log_email(db, to_email, subject, "sent", user_id=user_id)
 
 
 def render_email_template(
@@ -215,17 +225,7 @@ def render_email_template(
         raise FileNotFoundError(f"Email template not found: {template_name}")
 
     template = template_path.read_text(encoding="utf-8")
-    placeholders = set(PLACEHOLDER_PATTERN.findall(template))
-    missing_values = placeholders.difference(values)
-    if missing_values:
-        raise ValueError(
-            "Missing email template values: " + ", ".join(sorted(missing_values))
-        )
-
-    return PLACEHOLDER_PATTERN.sub(
-        lambda match: html.escape(str(values[match.group(1)]), quote=True),
-        template,
-    )
+    return EMAIL_TEMPLATE_ENV.from_string(template).render(**values)
 
 
 email_service = EmailService()
@@ -235,14 +235,83 @@ async def send_welcome_email(
     db: EmailDatabase,
     to_email: str,
     full_name: str,
+    language: str,
+    assessment_url: str,
+    user_id: UUID,
 ) -> None:
+    if language not in {"ar", "en"}:
+        raise ValueError("language must be 'ar' or 'en'")
     html_content = render_email_template(
-        "welcome_ar.html",
-        {"full_name": full_name},
+        f"welcome_{language}.html",
+        {"user_name": full_name, "assessment_url": _validated_http_url(assessment_url)},
     )
     await email_service.send_email(
         db,
         to_email=to_email,
-        subject="مرحباً بك في بوصلة النفس",
+        subject=(
+            "مرحباً بك في بوصلة النفس"
+            if language == "ar"
+            else "Welcome to Soul Compass"
+        ),
         html_content=html_content,
+        user_id=user_id,
     )
+
+
+async def send_book_ready_email(
+    db: EmailDatabase,
+    to_email: str,
+    full_name: str,
+    language: str,
+    download_url: str,
+    user_id: UUID,
+) -> None:
+    if language not in {"ar", "en"}:
+        raise ValueError("language must be 'ar' or 'en'")
+    html_content = render_email_template(
+        f"book_ready_{language}.html",
+        {"user_name": full_name, "download_url": _validated_http_url(download_url)},
+    )
+    await email_service.send_email(
+        db,
+        to_email=to_email,
+        subject=(
+            "كتابك الشخصي جاهز للتنزيل"
+            if language == "ar"
+            else "Your self-reflection report is ready"
+        ),
+        html_content=html_content,
+        user_id=user_id,
+    )
+
+
+def _validated_http_url(value: str) -> str:
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or any(character in value for character in "\r\n")
+    ):
+        raise ValueError("Email links must be absolute HTTP(S) URLs")
+    if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1"}:
+        raise ValueError("Non-local email links must use HTTPS")
+    return urlunsplit(parsed)
+
+
+def build_assessment_url(frontend_url: str) -> str:
+    parsed = urlsplit(frontend_url.strip())
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or any(character in frontend_url for character in "\r\n")
+    ):
+        raise ValueError("FRONTEND_URL must be an absolute HTTP(S) base URL")
+    if parsed.scheme != "https" and parsed.hostname not in {"localhost", "127.0.0.1"}:
+        raise ValueError("FRONTEND_URL must use HTTPS outside local development")
+    return urlunsplit((parsed.scheme, parsed.netloc, "/assessment", "", ""))
