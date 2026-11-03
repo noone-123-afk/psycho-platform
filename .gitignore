@@ -3,6 +3,11 @@ temp/
 .env
 client/node_modules/
 client/dist/
+frontend/node_modules/
+frontend/.next/
+backend/generated_books/
+__pycache__/
+*.py[cod]
 .DS_Store
 *.log
 .vscode/

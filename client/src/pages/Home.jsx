@@ -1,12 +1,10 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, BookOpen, Users } from 'lucide-react';
+import { Globe, BookOpen, Users, Brain, Lightbulb, Heart, Feather } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 
 const Home = () => {
   const { t, i18n } = useTranslation();
-  const navigate = useNavigate();
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'ar' ? 'en' : 'ar';
@@ -68,7 +66,7 @@ const Home = () => {
           style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', justifyContent: 'center' }}
         >
           <button 
-            onClick={() => navigate('/assessment')}
+            onClick={() => document.getElementById('assessment-foundation')?.scrollIntoView({ behavior: 'smooth' })}
             style={{
             padding: '15px 40px',
             fontSize: '1.1rem',
@@ -80,28 +78,56 @@ const Home = () => {
             boxShadow: '0 4px 15px rgba(139, 115, 85, 0.3)',
             transition: 'transform 0.2s',
           }}>
-            {t('startIndividualBtn')}
+            {t('exploreFoundation')}
           </button>
           
           <button 
-            onClick={() => navigate('/assessment?type=couple')}
+            disabled
             style={{
             padding: '15px 40px',
             fontSize: '1.1rem',
-            backgroundColor: '#fff',
-            color: '#8b7355',
-            border: '2px solid #8b7355',
+            backgroundColor: '#f5f5f5',
+            color: '#777',
+            border: '2px solid #ddd',
             borderRadius: '30px',
-            cursor: 'pointer',
+            cursor: 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            boxShadow: '0 4px 15px rgba(0, 0, 0, 0.05)',
+            opacity: 0.75,
           }}>
             <Users size={20} />
-            {t('startCoupleBtn')}
+            {t('relationshipComingSoon')}
           </button>
         </motion.div>
+
+        <section id="assessment-foundation" className="assessment-foundation" aria-labelledby="foundation-title">
+          <div className="foundation-heading">
+            <span className="foundation-eyebrow">{t('foundationEyebrow')}</span>
+            <h2 id="foundation-title">{t('foundationTitle')}</h2>
+            <p>{t('foundationIntro')}</p>
+          </div>
+          <div className="foundation-grid">
+            {[
+              { icon: Brain, title: 'foundationPersonalityTitle', description: 'foundationPersonalityDescription', reference: 'foundationPersonalityReference' },
+              { icon: Lightbulb, title: 'foundationAbilitiesTitle', description: 'foundationAbilitiesDescription', reference: 'foundationAbilitiesReference' },
+              { icon: Heart, title: 'foundationStrengthsTitle', description: 'foundationStrengthsDescription', reference: 'foundationStrengthsReference' },
+              { icon: Feather, title: 'foundationNarrativeTitle', description: 'foundationNarrativeDescription', reference: 'foundationNarrativeReference' },
+            ].map(({ icon: Icon, title, description, reference }) => (
+              <article className="foundation-card" key={title}>
+                <span className="foundation-icon"><Icon size={22} aria-hidden="true" /></span>
+                <h3>{t(title)}</h3>
+                <p>{t(description)}</p>
+                <span className="foundation-reference">{t(reference)}</span>
+              </article>
+            ))}
+          </div>
+          <p className="foundation-note">{t('foundationNote')}</p>
+          <aside className="medical-disclaimer" role="note">
+            <strong>{t('medicalDisclaimerTitle')}</strong>
+            <p>{t('medicalDisclaimer')}</p>
+          </aside>
+        </section>
 
       </main>
 
