@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import Home from './pages/Home'
 import Assessment from './pages/Assessment'
 import AdminDashboard from './pages/AdminDashboard'
+import CrisisPage from './pages/Crisis'
 
 // مكون مساعد لتحديث لغة واتجاه الصفحة ومراقبة التنقل
 const AppWrapper = () => {
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const location = useLocation();
 
   useEffect(() => {
@@ -27,7 +28,28 @@ const AppWrapper = () => {
         <Route path="/" element={<Home />} />
         <Route path="/assessment" element={<Assessment />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/crisis" element={<CrisisPage />} />
       </Routes>
+      {location.pathname !== '/crisis' && (
+        <Link
+          to="/crisis"
+          style={{
+            position: 'fixed',
+            insetInlineStart: '16px',
+            bottom: '16px',
+            zIndex: 900,
+            padding: '12px 16px',
+            borderRadius: '999px',
+            background: '#b91c1c',
+            color: '#fff',
+            fontWeight: 700,
+            textDecoration: 'none',
+            boxShadow: '0 4px 16px rgba(127, 29, 29, 0.3)',
+          }}
+        >
+          🆘 {t('crisisEmergencyLink')}
+        </Link>
+      )}
     </div>
   );
 };

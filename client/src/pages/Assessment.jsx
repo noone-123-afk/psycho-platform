@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from 'axios';
+import CrisisSupportNotice from '../components/CrisisSupportNotice';
+import { hasPotentialCrisisSignal } from '../utils/crisisSignals';
 
 const Assessment = () => {
   const { t, i18n } = useTranslation();
@@ -20,6 +22,7 @@ const Assessment = () => {
   const [assessmentId, setAssessmentId] = useState(null);
   const [downloadUrl, setDownloadUrl] = useState(null);
   const [freePreview, setFreePreview] = useState("");
+  const [showCrisisNotice, setShowCrisisNotice] = useState(false);
 
   // الأسئلة العلمية المرتبطة بالترجمة
   const questions = [
@@ -40,14 +43,28 @@ const Assessment = () => {
   };
 
   const goToNext = async () => {
-    if (question.type === "text" && textAnswer.trim() !== "") {
-        setAnswers({ ...answers, [question.id]: textAnswer });
-        setTextAnswer("");
-    }
-    
+    const answerText = textAnswer.trim();
+    const submittedAnswers = question.type === "text" && answerText
+      ? { ...answers, [question.id]: answerText }
+      : answers;
+
     if (currentQuestionIndex < questions.length - 1) {
+      if (question.type === "text" && answerText) {
+        setAnswers(submittedAnswers);
+        setTextAnswer("");
+      }
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
+        if (question.type === "text" && hasPotentialCrisisSignal(answerText)) {
+            setShowCrisisNotice(true);
+            return;
+        }
+
+        if (question.type === "text" && answerText) {
+          setAnswers(submittedAnswers);
+          setTextAnswer("");
+        }
+
         // إنهاء الاختبار وإرسال البيانات للخادم
         setIsFinished(true);
         setIsGenerating(true);
@@ -57,7 +74,7 @@ const Assessment = () => {
                 userId: "user_test_id", // يجب أن يأتي من سياق تسجيل الدخول الفعلي
                 userName: "عميل كريم",
                 userEmail: "test@example.com",
-                answers: answers
+                answers: submittedAnswers
             });
             
             if(response.data.success) {
@@ -186,6 +203,9 @@ const Assessment = () => {
   // ----------------------------------------------------
   return (
     <div style={containerStyle(i18n.language)}>
+      {showCrisisNotice && (
+        <CrisisSupportNotice onClose={() => setShowCrisisNotice(false)} />
+      )}
       <div style={cardStyle}>
         
         {/* شريط التقدم */}
