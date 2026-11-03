@@ -21,6 +21,13 @@ app.use('/api/assessment', assessmentRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/user', userFeaturesRoutes);
 
+// السماح بالوصول لمجلد temp لتحميل الكتب (PDF) بعد الدفع
+const fs = require('fs');
+if (!fs.existsSync(path.join(__dirname, 'temp'))) {
+    fs.mkdirSync(path.join(__dirname, 'temp'));
+}
+app.use('/download', express.static(path.join(__dirname, 'temp')));
+
 // إعداد الخادم ليعمل مع ملفات الواجهة الأمامية (React) في بيئة الإنتاج أو التطوير المحلي
 app.use(express.static(path.join(__dirname, 'client/dist')));
 

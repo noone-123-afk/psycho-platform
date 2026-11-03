@@ -1,45 +1,74 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, ChevronRight, ChevronLeft, CreditCard, Gift, FileText, Headphones } from 'lucide-react';
+import { CheckCircle2, ChevronRight, ChevronLeft, CreditCard, Gift, FileText, Headphones, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import axios from 'axios';
 
 const Assessment = () => {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isCoupleTest = searchParams.get('type') === 'couple';
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [textAnswer, setTextAnswer] = useState("");
-  const [isFinished, setIsFinished] = useState(false); // حالة إنهاء الاختبار
+  const [isFinished, setIsFinished] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [assessmentId, setAssessmentId] = useState(null);
+  const [downloadUrl, setDownloadUrl] = useState(null);
+  const [freePreview, setFreePreview] = useState("");
 
-  // ... (بقية الكود الخاص بالأسئلة)
-  const mockQuestions = [
-    { id: 1, text: "كيف تصف شعورك العام خلال الأسبوع الماضي؟", type: "multiple_choice", options: ["مرهق ومضغوط", "هادئ ومستقر", "قلق ومتوتر", "متحمس وحيوي"] },
-    { id: 2, text: "عندما تواجه مشكلة معقدة، كيف تتصرف عادة؟", type: "multiple_choice", options: ["أطلب المساعدة فوراً", "أحاول حلها بنفسي بهدوء", "أشعر بالتوتر وأتوقف", "أقوم بتجزئتها لخطوات"] },
-    { id: 3, text: "صِف لنا بكلماتك الخاصة، ماذا يعني لك مصطلح 'الراحة النفسية'؟", type: "text" },
+  // الأسئلة العلمية المرتبطة بالترجمة
+  const questions = [
+    { id: 'q1', type: "multiple_choice", options: ["q1_o1", "q1_o2", "q1_o3", "q1_o4"] },
+    { id: 'q2', type: "multiple_choice", options: ["q2_o1", "q2_o2", "q2_o3", "q2_o4"] },
+    { id: 'q3', type: "multiple_choice", options: ["q3_o1", "q3_o2", "q3_o3", "q3_o4"] },
+    { id: 'q4', type: "multiple_choice", options: ["q4_o1", "q4_o2", "q4_o3", "q4_o4"] },
+    { id: 'q5', type: "text" },
   ];
 
-  const question = mockQuestions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / mockQuestions.length) * 100;
-  const isLastQuestion = currentQuestionIndex === mockQuestions.length - 1;
+  const question = questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
-  const handleOptionSelect = (option) => {
-    setAnswers({ ...answers, [question.id]: option });
+  const handleOptionSelect = (optionKey) => {
+    setAnswers({ ...answers, [question.id]: t(optionKey) });
     setTimeout(() => goToNext(), 400);
   };
 
-  const goToNext = () => {
+  const goToNext = async () => {
     if (question.type === "text" && textAnswer.trim() !== "") {
         setAnswers({ ...answers, [question.id]: textAnswer });
         setTextAnswer("");
     }
-    if (currentQuestionIndex < mockQuestions.length - 1) {
+    
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-        // إنهاء الاختبار وعرض شاشة الدفع
+        // إنهاء الاختبار وإرسال البيانات للخادم
         setIsFinished(true);
+        setIsGenerating(true);
+        try {
+            // محاكاة الاتصال بالخادم لإنشاء الكتاب (Endpoint)
+            const response = await axios.post('/api/assessment/generate-book', {
+                userId: "user_test_id", // يجب أن يأتي من سياق تسجيل الدخول الفعلي
+                userName: "عميل كريم",
+                userEmail: "test@example.com",
+                answers: answers
+            });
+            
+            if(response.data.success) {
+                setAssessmentId(response.data.assessmentId || "temp_id");
+                setFreePreview(response.data.freePreview || t('testFinished'));
+            }
+        } catch (error) {
+            console.error("خطأ في توليد الكتاب", error);
+        } finally {
+            setIsGenerating(false);
+        }
     }
   };
 
@@ -49,88 +78,120 @@ const Assessment = () => {
     }
   };
 
-  // شاشة إنهاء الاختبار وعرض خيارات الدفع
+  const handleApprove = async (data, actions, paymentType) => {
+      try {
+          const res = await axios.post('/api/payment/capture-order', {
+              orderID: data.orderID,
+              assessmentId: assessmentId,
+              paymentType: paymentType
+          });
+          if(res.data.status === 'success') {
+              // توفير رابط التحميل بعد الدفع الناجح
+              setDownloadUrl(`/download/final_${assessmentId}.pdf`); // مسار وهمي يعكس التخزين المؤقت
+          }
+      } catch (err) {
+          console.error("Payment Capture Error", err);
+          alert("حدث خطأ أثناء معالجة الدفع.");
+      }
+  };
+
+  // ----------------------------------------------------
+  // شاشة إنهاء الاختبار وعرض خيارات الدفع (أزرار PayPal الفعّالة)
+  // ----------------------------------------------------
   if (isFinished) {
     return (
-      <div style={containerStyle}>
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-          style={cardStyle}
-        >
-          <CheckCircle2 color="#8b7355" size={60} style={{ margin: '0 auto 20px', display: 'block' }} />
-          <h2 style={{ textAlign: 'center', color: '#333' }}>لقد أتممت الاختبار بنجاح!</h2>
-          <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px' }}>
-            نحن الآن نقوم بتحليل إجاباتك العميقة. 
-            <br />
-            <strong>لمحة سريعة:</strong> يبدو أنك شخص يميل إلى التفكير التحليلي العميق وتتحمل مسؤوليات تفوق طاقتك أحياناً.
-          </p>
-
-          <h4 style={{ textAlign: 'center', marginBottom: '20px' }}>اختر باقتك للحصول على كتابك المخصص الكامل:</h4>
+      <div style={containerStyle(i18n.language)}>
+        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={cardStyle}>
           
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            
-            {/* باقة PDF */}
-            <div style={pricingCardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <FileText color="#8b7355" size={30} />
-                <div>
-                  <h3 style={{ margin: 0 }}>النسخة الرقمية (PDF)</h3>
-                  <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#666' }}>كتاب إلكتروني بتصميم فني أنيق</p>
-                </div>
+          {isGenerating ? (
+              <div style={{ textAlign: 'center', padding: '50px' }}>
+                  <div className="loader" style={loaderStyle}></div>
+                  <h3 style={{ marginTop: '20px', color: '#8b7355' }}>{t('processingAnswers')}</h3>
+                  <p>{t('generating')}</p>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px', color: '#8b7355' }}>$10</h3>
-                <button style={payButtonStyle}><CreditCard size={16}/> شراء عبر PayPal</button>
+          ) : downloadUrl ? (
+              <div style={{ textAlign: 'center', padding: '30px' }}>
+                  <CheckCircle2 color="#2ecc71" size={60} style={{ margin: '0 auto 20px', display: 'block' }} />
+                  <h2>{t('testFinished')}</h2>
+                  <a href={downloadUrl} target="_blank" rel="noreferrer" style={{...payButtonStyle, display: 'inline-flex', marginTop: '20px', backgroundColor: '#8b7355', textDecoration: 'none'}}>
+                      <Download size={20} /> {t('downloadReady')}
+                  </a>
               </div>
-            </div>
+          ) : (
+              <>
+                  <CheckCircle2 color="#8b7355" size={60} style={{ margin: '0 auto 20px', display: 'block' }} />
+                  <h2 style={{ textAlign: 'center', color: '#333' }}>{t('testFinished')}</h2>
+                  <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px', padding: '15px', backgroundColor: '#fdfbf7', borderRadius: '10px', border: '1px solid #eee' }}>
+                    <strong>{t('freePreview')}:</strong> {freePreview}
+                  </p>
 
-            {/* باقة الصوت */}
-            <div style={pricingCardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <Headphones color="#8b7355" size={30} />
-                <div>
-                  <h3 style={{ margin: 0 }}>الباقة الشاملة (PDF + كتاب صوتي)</h3>
-                  <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#666' }}>استمع لتحليلك بصوت هادئ ومريح</p>
-                </div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px', color: '#8b7355' }}>$25</h3>
-                <button style={payButtonStyle}><CreditCard size={16}/> شراء عبر PayPal</button>
-              </div>
-            </div>
+                  <h4 style={{ textAlign: 'center', marginBottom: '20px' }}>{t('choosePackage')}</h4>
+                  
+                  {/* PayPal Provider (يجب وضع الـ Client ID الحقيقي الخاص بك هنا بدلاً من test) */}
+                  <PayPalScriptProvider options={{ "client-id": "test", currency: "USD" }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          
+                          {/* باقة PDF */}
+                          <div style={pricingCardStyle(i18n.language)}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                  <FileText color="#8b7355" size={30} />
+                                  <div>
+                                      <h3 style={{ margin: 0 }}>{t('pdfPackage')}</h3>
+                                      <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#666' }}>{t('pdfDesc')}</p>
+                                  </div>
+                              </div>
+                              <div style={{ width: '200px' }}>
+                                  <h3 style={{ margin: '0 0 10px', color: '#8b7355', textAlign: 'center' }}>$10</h3>
+                                  <PayPalButtons 
+                                      style={{ layout: "horizontal", height: 35 }} 
+                                      createOrder={(data, actions) => {
+                                          return axios.post('/api/payment/create-order/pdf').then(res => res.data.id);
+                                      }}
+                                      onApprove={(data, actions) => handleApprove(data, actions, 'pdf')}
+                                  />
+                              </div>
+                          </div>
 
-            {/* باقة الهدايا */}
-            <div style={{ ...pricingCardStyle, backgroundColor: '#fdfbf7', border: '1px dashed #8b7355' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <Gift color="#8b7355" size={30} />
-                <div>
-                  <h3 style={{ margin: 0 }}>أهدِ هذا الاختبار لصديق</h3>
-                  <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#666' }}>احصل على كود هدية ترسله لمن تحب</p>
-                </div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <h3 style={{ margin: '0 0 10px', color: '#8b7355' }}>$10</h3>
-                <button style={{ ...payButtonStyle, backgroundColor: '#fff', color: '#8b7355', border: '1px solid #8b7355' }}>
-                  شراء كود هدية
-                </button>
-              </div>
-            </div>
-
-          </div>
+                          {/* الباقة الشاملة */}
+                          <div style={pricingCardStyle(i18n.language)}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                                  <Headphones color="#8b7355" size={30} />
+                                  <div>
+                                      <h3 style={{ margin: 0 }}>{t('audioPackage')}</h3>
+                                      <p style={{ margin: '5px 0 0', fontSize: '13px', color: '#666' }}>{t('audioDesc')}</p>
+                                  </div>
+                              </div>
+                              <div style={{ width: '200px' }}>
+                                  <h3 style={{ margin: '0 0 10px', color: '#8b7355', textAlign: 'center' }}>$25</h3>
+                                  <PayPalButtons 
+                                      style={{ layout: "horizontal", height: 35 }} 
+                                      createOrder={(data, actions) => {
+                                          return axios.post('/api/payment/create-order/pdf-audio').then(res => res.data.id);
+                                      }}
+                                      onApprove={(data, actions) => handleApprove(data, actions, 'pdf_audio')}
+                                  />
+                              </div>
+                          </div>
+                      </div>
+                  </PayPalScriptProvider>
+              </>
+          )}
         </motion.div>
       </div>
     );
   }
 
-  // --- واجهة عرض الأسئلة الأصلية تبقى هنا ---
+  // ----------------------------------------------------
+  // واجهة عرض الأسئلة الأصلية
+  // ----------------------------------------------------
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle(i18n.language)}>
       <div style={cardStyle}>
         
         {/* شريط التقدم */}
         <div style={{ marginBottom: '30px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', color: '#666', marginBottom: '8px' }}>
-            <span>{isCoupleTest ? 'اختبار العلاقات' : 'الاختبار الفردي'} - سؤال {currentQuestionIndex + 1} من {mockQuestions.length}</span>
+            <span>{isCoupleTest ? t('coupleTest') : t('individualTest')} - {t('questionOf', {current: currentQuestionIndex + 1, total: questions.length})}</span>
             <span>{Math.round(progress)}%</span>
           </div>
           <div style={{ height: '6px', backgroundColor: '#eee', borderRadius: '3px', overflow: 'hidden' }}>
@@ -149,20 +210,21 @@ const Assessment = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: i18n.language === 'ar' ? 20 : -20 }}
             transition={{ duration: 0.3 }}
-            style={{ minHeight: '200px' }}
+            style={{ minHeight: '250px' }}
           >
             <h3 style={{ fontSize: '1.4rem', color: '#333', marginBottom: '30px', lineHeight: '1.6' }}>
-              {question.text}
+              {t(question.id)}
             </h3>
 
             {question.type === "multiple_choice" && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {question.options.map((option, idx) => {
-                  const isSelected = answers[question.id] === option;
+                {question.options.map((optionKey, idx) => {
+                  const optionText = t(optionKey);
+                  const isSelected = answers[question.id] === optionText;
                   return (
                     <button
                       key={idx}
-                      onClick={() => handleOptionSelect(option)}
+                      onClick={() => handleOptionSelect(optionKey)}
                       style={{
                         padding: '15px 20px',
                         textAlign: i18n.language === 'ar' ? 'right' : 'left',
@@ -178,7 +240,7 @@ const Assessment = () => {
                         color: '#333'
                       }}
                     >
-                      {option}
+                      {optionText}
                       {isSelected && <CheckCircle2 color="#8b7355" size={20} />}
                     </button>
                   );
@@ -190,7 +252,6 @@ const Assessment = () => {
                 <textarea 
                     value={textAnswer}
                     onChange={(e) => setTextAnswer(e.target.value)}
-                    placeholder="اكتب إجابتك هنا بحرية تامة..."
                     style={{
                         width: '100%', minHeight: '150px', padding: '15px', borderRadius: '12px',
                         border: '2px solid #e0e0e0', fontSize: '1.1rem', fontFamily: 'inherit',
@@ -210,13 +271,13 @@ const Assessment = () => {
             style={{ padding: '10px 20px', backgroundColor: 'transparent', border: 'none', color: currentQuestionIndex === 0 ? '#ccc' : '#666', cursor: currentQuestionIndex === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '5px' }}
           >
             {i18n.language === 'ar' ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-            السابق
+            {t('prevBtn')}
           </button>
           <button 
             onClick={goToNext}
             style={{ padding: '12px 30px', backgroundColor: '#8b7355', color: '#fff', border: 'none', borderRadius: '25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}
           >
-            {isLastQuestion ? "إنهاء الاختبار" : "التالي"}
+            {isLastQuestion ? t('finishBtn') : t('nextBtn')}
             {i18n.language === 'ar' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
           </button>
         </div>
@@ -226,15 +287,17 @@ const Assessment = () => {
 };
 
 // تنسيقات مساعدة
-const containerStyle = {
+const containerStyle = (lang) => ({
     minHeight: '100vh',
     background: 'linear-gradient(135deg, #ffffff 0%, #fdfbf7 50%, #f5f0e6 100%)',
     color: '#000',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    padding: '40px 20px'
-};
+    padding: '40px 20px',
+    fontFamily: lang === 'ar' ? '"Tajawal", sans-serif' : '"Segoe UI", sans-serif',
+    direction: lang === 'ar' ? 'rtl' : 'ltr'
+});
 
 const cardStyle = {
     maxWidth: '700px',
@@ -246,7 +309,7 @@ const cardStyle = {
     marginTop: '20px'
 };
 
-const pricingCardStyle = {
+const pricingCardStyle = (lang) => ({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -254,21 +317,36 @@ const pricingCardStyle = {
     backgroundColor: '#fff',
     border: '1px solid #eee',
     borderRadius: '12px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
-};
+    boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
+    flexDirection: 'row',
+    gap: '20px',
+    flexWrap: 'wrap'
+});
 
 const payButtonStyle = {
     padding: '10px 15px',
-    backgroundColor: '#003087', // لون PayPal
+    backgroundColor: '#003087',
     color: 'white',
     border: 'none',
     borderRadius: '8px',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: '8px',
     fontSize: '14px',
-    fontWeight: 'bold'
+    fontWeight: 'bold',
+    width: '100%'
+};
+
+const loaderStyle = {
+    border: '5px solid #f3f3f3',
+    borderTop: '5px solid #8b7355',
+    borderRadius: '50%',
+    width: '50px',
+    height: '50px',
+    animation: 'spin 1s linear infinite',
+    margin: '0 auto'
 };
 
 export default Assessment;
