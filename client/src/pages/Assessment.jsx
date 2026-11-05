@@ -8,6 +8,14 @@ import axios from 'axios';
 import CrisisSupportNotice from '../components/CrisisSupportNotice';
 import { hasPotentialCrisisSignal } from '../utils/crisisSignals';
 import { hasAuthToken } from '../utils/auth';
+import questionnaire from '../data/assessmentQuestions.json';
+
+const questions = [
+  ...questionnaire.domains.flatMap((domain) =>
+    domain.questions.map((question) => ({ ...question, type: 'rating' }))
+  ),
+  ...questionnaire.reflections.map((question) => ({ ...question, type: 'text' }))
+];
 
 const Assessment = () => {
   const { t, i18n } = useTranslation();
@@ -18,7 +26,6 @@ const Assessment = () => {
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [textAnswer, setTextAnswer] = useState("");
   const [isFinished, setIsFinished] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [assessmentId, setAssessmentId] = useState(null);
@@ -41,62 +48,53 @@ const Assessment = () => {
       ));
   }, [i18n.language, navigate]);
 
-  // الأسئلة العلمية المرتبطة بالترجمة
-  const questions = [
-    { id: 'q1', type: "multiple_choice", options: ["q1_o1", "q1_o2", "q1_o3", "q1_o4"] },
-    { id: 'q2', type: "multiple_choice", options: ["q2_o1", "q2_o2", "q2_o3", "q2_o4"] },
-    { id: 'q3', type: "multiple_choice", options: ["q3_o1", "q3_o2", "q3_o3", "q3_o4"] },
-    { id: 'q4', type: "multiple_choice", options: ["q4_o1", "q4_o2", "q4_o3", "q4_o4"] },
-    { id: 'q5', type: "text" },
-  ];
-
   const question = questions[currentQuestionIndex];
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
-  const handleOptionSelect = (optionKey) => {
-    setAnswers({ ...answers, [question.id]: t(optionKey) });
-    setTimeout(() => goToNext(), 400);
+  const handleOptionSelect = (value) => {
+    setAnswers((current) => ({ ...current, [question.id]: value }));
+    setPaymentMessage('');
   };
 
   const goToNext = async () => {
-    const answerText = textAnswer.trim();
-    const submittedAnswers = question.type === "text" && answerText
-      ? { ...answers, [question.id]: answerText }
-      : answers;
+    if (question.type === 'rating' && !Number.isInteger(answers[question.id])) {
+      setPaymentMessage(i18n.language === 'ar'
+        ? 'اختر إجابة للمتابعة.'
+        : 'Select an answer to continue.');
+      return;
+    }
+    setPaymentMessage('');
 
     if (currentQuestionIndex < questions.length - 1) {
-      if (question.type === "text" && answerText) {
-        setAnswers(submittedAnswers);
-        setTextAnswer("");
-      }
       setCurrentQuestionIndex(prev => prev + 1);
     } else {
-        if (question.type === "text" && hasPotentialCrisisSignal(answerText)) {
+        const reflectionAnswers = questionnaire.reflections
+          .map(({ id }) => answers[id])
+          .filter((answer) => typeof answer === 'string');
+        if (reflectionAnswers.some(hasPotentialCrisisSignal)) {
             setShowCrisisNotice(true);
             return;
         }
 
-        if (question.type === "text" && answerText) {
-          setAnswers(submittedAnswers);
-          setTextAnswer("");
-        }
-
-        // إنهاء الاختبار وإرسال البيانات للخادم
         setIsFinished(true);
         setIsGenerating(true);
         try {
             const response = await axios.post('/api/assessment/generate-book', {
-                answers: submittedAnswers
+                answers
             });
-            
-            if(response.data.success) {
-                setAssessmentId(response.data.assessmentId);
-                setFreePreview(response.data.freePreview || t('testFinished'));
+            if (!response.data.success) {
+              throw new Error(response.data.message || 'Assessment generation failed');
             }
+            setAssessmentId(response.data.assessmentId);
+            setFreePreview(response.data.freePreview || t('testFinished'));
         } catch (error) {
-            console.error("خطأ في توليد الكتاب", error);
-            setPaymentMessage(error.response?.data?.message || t('testFinished'));
+            console.error('Assessment submission failed:', error);
+            setPaymentMessage(error.response?.data?.message || (
+              i18n.language === 'ar'
+                ? 'تعذر حفظ التقييم. إجاباتك ما زالت محفوظة؛ يرجى المحاولة مرة أخرى.'
+                : 'We could not save your assessment. Your answers are still here; please try again.'
+            ));
             setIsFinished(false);
         } finally {
             setIsGenerating(false);
@@ -254,6 +252,11 @@ const Assessment = () => {
         <CrisisSupportNotice onClose={() => setShowCrisisNotice(false)} />
       )}
       <div style={cardStyle}>
+        <p style={{ color: '#666', lineHeight: 1.7 }}>
+          {i18n.language === 'ar'
+            ? `يتضمن التقييم 30 عبارة و4 أسئلة تأملية اختيارية، ويستغرق نحو ${questionnaire.estimatedMinutes} دقيقة. هذا استبيان للتأمل الذاتي وليس اختباراً نفسياً مقنناً أو تشخيصاً.`
+            : `This assessment has 30 statements and 4 optional reflection prompts and takes about ${questionnaire.estimatedMinutes} minutes. It is for self-reflection, not a standardized psychological test or diagnosis.`}
+        </p>
         
         {/* شريط التقدم */}
         <div style={{ marginBottom: '30px' }}>
@@ -280,18 +283,20 @@ const Assessment = () => {
             style={{ minHeight: '250px' }}
           >
             <h3 style={{ fontSize: '1.4rem', color: '#333', marginBottom: '30px', lineHeight: '1.6' }}>
-              {t(question.id)}
+              {question[i18n.language === 'en' ? 'en' : 'ar']}
             </h3>
 
-            {question.type === "multiple_choice" && (
+            {question.type === 'rating' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                {question.options.map((optionKey, idx) => {
-                  const optionText = t(optionKey);
-                  const isSelected = answers[question.id] === optionText;
+                {questionnaire.scale.map((option) => {
+                  const optionText = option[i18n.language === 'en' ? 'en' : 'ar'];
+                  const isSelected = answers[question.id] === option.value;
                   return (
                     <button
-                      key={idx}
-                      onClick={() => handleOptionSelect(optionKey)}
+                      key={option.value}
+                      type="button"
+                      onClick={() => handleOptionSelect(option.value)}
+                      aria-pressed={isSelected}
                       style={{
                         padding: '15px 20px',
                         textAlign: i18n.language === 'ar' ? 'right' : 'left',
@@ -315,10 +320,15 @@ const Assessment = () => {
               </div>
             )}
 
-            {question.type === "text" && (
+            {question.type === 'text' && (
+                <>
                 <textarea 
-                    value={textAnswer}
-                    onChange={(e) => setTextAnswer(e.target.value)}
+                    value={answers[question.id] || ''}
+                    maxLength={1500}
+                    onChange={(event) => setAnswers((current) => ({
+                      ...current,
+                      [question.id]: event.target.value
+                    }))}
                     style={{
                         width: '100%', minHeight: '150px', padding: '15px', borderRadius: '12px',
                         border: '2px solid #e0e0e0', fontSize: '1.1rem', fontFamily: 'inherit',
@@ -327,6 +337,10 @@ const Assessment = () => {
                     onFocus={(e) => e.target.style.borderColor = '#8b7355'}
                     onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 />
+                <p style={{ color: '#666', fontSize: '0.9rem' }}>
+                  {i18n.language === 'ar' ? 'هذا السؤال اختياري.' : 'This question is optional.'}
+                </p>
+                </>
             )}
           </motion.div>
         </AnimatePresence>
@@ -341,8 +355,10 @@ const Assessment = () => {
             {t('prevBtn')}
           </button>
           <button 
+            type="button"
             onClick={goToNext}
-            style={{ padding: '12px 30px', backgroundColor: '#8b7355', color: '#fff', border: 'none', borderRadius: '25px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold' }}
+            disabled={isGenerating}
+            style={{ padding: '12px 30px', backgroundColor: '#8b7355', color: '#fff', border: 'none', borderRadius: '25px', cursor: isGenerating ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 'bold', opacity: isGenerating ? 0.7 : 1 }}
           >
             {isLastQuestion ? t('finishBtn') : t('nextBtn')}
             {i18n.language === 'ar' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}

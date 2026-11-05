@@ -102,7 +102,7 @@ async function deliverPaidAssessment(assessment, user, res) {
         const fileName = `final_${claimedAssessment.id}.pdf`;
         const outputPath = path.join(__dirname, '..', 'temp', fileName);
         await fs.mkdir(path.dirname(outputPath), { recursive: true });
-        await createPDFBooklet(claimedAssessment.bookContentRaw, user.name, outputPath);
+        await createPDFBooklet(claimedAssessment.bookContentRaw, user.name, outputPath, user.language);
         if (user.notificationPreferences?.bookReadyEmail !== false) {
             await sendFinalBookToUser(
                 user.email,

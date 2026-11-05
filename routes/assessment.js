@@ -5,51 +5,65 @@ const { createPDFBooklet } = require('../utils/pdfGenerator');
 const { sendBookForAdminReview, sendFinalBookToUser } = require('../services/emailService');
 const Assessment = require('../models/Assessment');
 const path = require('path');
-const fs = require('fs');
+const fs = require('node:fs/promises');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { validateAssessmentAnswers } = require('../services/assessmentProfile');
 
-// مسار لإنهاء الاختبار وتوليد الكتاب المبدئي (يُرسل للإدارة أولاً)
+async function prepareAdminReviewCopy(assessment, userEmail, userName, userId, language) {
+    try {
+        const outputPath = path.join(__dirname, '..', 'temp', `draft_${assessment.id}.pdf`);
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        await createPDFBooklet(assessment.bookContentRaw, userName, outputPath, language);
+        await sendBookForAdminReview(assessment.id, userEmail, outputPath, userId);
+    } catch (error) {
+        console.error(`Assessment ${assessment.id} was saved, but admin review delivery failed:`, error.message);
+    }
+}
+
 router.post('/generate-book', requireAuth, async (req, res) => {
     const { answers } = req.body;
     const { id: userId, name: userName, email: userEmail } = req.authUser;
-    if (!answers || typeof answers !== 'object' || Array.isArray(answers)) {
-        return res.status(400).json({ success: false, message: 'إجابات التقييم غير صالحة' });
+    const validation = validateAssessmentAnswers(answers);
+    if (!validation.valid) {
+        return res.status(400).json({
+            success: false,
+            message: req.authUser.language === 'en'
+                ? validation.message
+                : 'يرجى الإجابة عن جميع أسئلة التقييم واستخدام إجابات صالحة.'
+        });
     }
 
     try {
-        // 1. توليد محتوى الكتاب بالذكاء الاصطناعي
-        const bookContent = await generateBookletContent({ name: userName }, answers);
+        const language = req.authUser.language === 'en' ? 'en' : 'ar';
+        const bookContent = await generateBookletContent({ name: userName, language }, answers);
 
-        // 2. إنشاء تقييم مبدئي في قاعدة البيانات (حالة: pending_review)
         const newAssessment = new Assessment({
             user: userId,
             answers: answers,
-            bookContentRaw: bookContent, // حفظ النص الخام ليسهل تعديله
+            bookContentRaw: bookContent,
             status: 'pending_review'
         });
         await newAssessment.save();
 
-        // 3. توليد نسخة PDF مؤقتة للمراجعة
-        const fileName = `draft_${newAssessment._id}.pdf`;
-        const outputPath = path.join(__dirname, '..', 'temp', fileName);
-        if (!fs.existsSync(path.join(__dirname, '..', 'temp'))) {
-            fs.mkdirSync(path.join(__dirname, '..', 'temp'));
-        }
-        await createPDFBooklet(bookContent, userName, outputPath);
+        void prepareAdminReviewCopy(newAssessment, userEmail, userName, userId, language);
 
-        // 4. إرسال النسخة التجريبية للإدارة للمراجعة
-        await sendBookForAdminReview(newAssessment._id, userEmail, outputPath, userId);
-
-        res.json({ 
-            success: true, 
+        return res.json({
+            success: true,
             assessmentId: newAssessment.id,
-            message: "تم تجهيز كتابك وهو الآن قيد المراجعة من قبل خبرائنا لضمان جودته. سيتم إرساله إلى بريدك الإلكتروني فور اعتماده.", 
-            freePreview: bookContent.free_preview // عرض اللمحة التشويقية المجانية
+            message: language === 'en'
+                ? 'Your responses were saved and your personalized reflection is ready.'
+                : 'تم حفظ إجاباتك وتجهيز قراءتك التأملية المخصصة.',
+            freePreview: bookContent.free_preview
         });
 
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: "حدث خطأ أثناء معالجة طلبك" });
+        console.error('Assessment generation failed:', error.message);
+        return res.status(500).json({
+            success: false,
+            message: req.authUser.language === 'en'
+                ? 'We could not save your assessment. Your answers are still on this page; please try again.'
+                : 'تعذر حفظ التقييم. إجاباتك ما زالت محفوظة في الصفحة، يرجى المحاولة مرة أخرى.'
+        });
     }
 });
 
@@ -97,7 +111,7 @@ router.post('/admin/approve-book/:assessmentId', requireAuth, requireAdmin, asyn
         // توليد ملف الـ PDF النهائي المعتمد
         const fileName = `final_${assessmentId}.pdf`;
         const outputPath = path.join(__dirname, '..', 'temp', fileName);
-        await createPDFBooklet(bookContent, userName, outputPath);
+        await createPDFBooklet(bookContent, userName, outputPath, user.language);
 
         // إرساله للعميل
         if (user.notificationPreferences?.bookReadyEmail !== false) {
@@ -143,7 +157,7 @@ router.post('/generate-relationship-book', requireAuth, async (req, res) => {
         // 3. توليد نسخة PDF
         const fileName = `draft_rel_${newAssessment._id}.pdf`;
         const outputPath = path.join(__dirname, '..', 'temp', fileName);
-        await createPDFBooklet(bookContent, `${userName} & ${partnerName}`, outputPath);
+        await createPDFBooklet(bookContent, `${userName} & ${partnerName}`, outputPath, user.language);
 
         // 4. إرسال للإدارة
         await sendBookForAdminReview(newAssessment._id, userEmail, outputPath, userId);

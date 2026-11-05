@@ -1,0 +1,106 @@
+{
+  "estimatedMinutes": 12,
+  "scale": [
+    { "value": 1, "ar": "لا تنطبق عليّ أبداً", "en": "Not at all like me" },
+    { "value": 2, "ar": "نادراً ما تنطبق عليّ", "en": "Rarely like me" },
+    { "value": 3, "ar": "تنطبق عليّ أحياناً", "en": "Sometimes like me" },
+    { "value": 4, "ar": "غالباً ما تنطبق عليّ", "en": "Often like me" },
+    { "value": 5, "ar": "تنطبق عليّ كثيراً", "en": "Very much like me" }
+  ],
+  "domains": [
+    {
+      "id": "connection",
+      "ar": "التواصل والعلاقات",
+      "en": "Connection and relationships",
+      "questions": [
+        { "id": "p01", "ar": "أجد طرقاً مريحة لبدء الحديث مع أشخاص جدد.", "en": "I find comfortable ways to start conversations with new people." },
+        { "id": "p02", "ar": "أستطيع التعبير بوضوح عمّا أحتاجه في علاقاتي.", "en": "I can clearly express what I need in my relationships." },
+        { "id": "p03", "ar": "أمنح الآخرين وقتاً كافياً لأفهم وجهة نظرهم قبل الرد.", "en": "I give others enough time to understand their point of view before responding." },
+        { "id": "p04", "ar": "أحافظ على تواصل منتظم مع الأشخاص المهمين بالنسبة إليّ.", "en": "I stay in regular contact with people who matter to me." },
+        { "id": "p05", "ar": "أستطيع وضع حدود محترمة عندما لا يناسبني طلب ما.", "en": "I can set respectful boundaries when a request does not work for me." }
+      ]
+    },
+    {
+      "id": "curiosity",
+      "ar": "الفضول والانفتاح",
+      "en": "Curiosity and openness",
+      "questions": [
+        { "id": "p06", "ar": "أستمتع بتعلّم موضوعات أو مهارات لم أجرّبها من قبل.", "en": "I enjoy learning about subjects or skills I have not tried before." },
+        { "id": "p07", "ar": "أبحث عن أكثر من تفسير عندما أواجه فكرة أو موقفاً جديداً.", "en": "I look for more than one explanation when I encounter a new idea or situation." },
+        { "id": "p08", "ar": "أستطيع مراجعة رأيي عندما تظهر لي معلومات جديدة.", "en": "I can reconsider my opinion when new information becomes available." },
+        { "id": "p09", "ar": "أخصص وقتاً لأنشطة إبداعية أو تجارب تثير اهتمامي.", "en": "I make time for creative activities or experiences that interest me." },
+        { "id": "p10", "ar": "أشعر بالفضول تجاه وجهات نظر تختلف عن وجهة نظري.", "en": "I feel curious about perspectives that differ from my own." }
+      ]
+    },
+    {
+      "id": "followThrough",
+      "ar": "التنظيم والاستمرار",
+      "en": "Organization and follow-through",
+      "questions": [
+        { "id": "p11", "ar": "أحوّل أهدافي المهمة إلى خطوات صغيرة وواضحة.", "en": "I turn important goals into small, clear steps." },
+        { "id": "p12", "ar": "أستخدم طريقة تساعدني على تذكّر التزاماتي ومواعيدي.", "en": "I use a system that helps me remember commitments and appointments." },
+        { "id": "p13", "ar": "أواصل العمل على مهمة مهمة حتى عندما يقل الحماس الأولي.", "en": "I keep working on an important task even when my initial motivation fades." },
+        { "id": "p14", "ar": "أراجع تقدمي وأعدّل خطتي عندما تتغير الظروف.", "en": "I review my progress and adjust my plan when circumstances change." },
+        { "id": "p15", "ar": "أوازن بين إنجاز المطلوب ومنح نفسي وقتاً للراحة.", "en": "I balance getting things done with giving myself time to rest." }
+      ]
+    },
+    {
+      "id": "cooperation",
+      "ar": "التعاون والتعاطف",
+      "en": "Cooperation and empathy",
+      "questions": [
+        { "id": "p16", "ar": "أحاول فهم ما قد يشعر به الآخرون حتى عندما أختلف معهم.", "en": "I try to understand what others may feel, even when I disagree with them." },
+        { "id": "p17", "ar": "أشارك الآخرين الدعم بطريقة تناسب قدرتي وظروفي.", "en": "I support others in ways that fit my capacity and circumstances." },
+        { "id": "p18", "ar": "أستطيع الاختلاف مع شخص مع الحفاظ على الاحترام المتبادل.", "en": "I can disagree with someone while maintaining mutual respect." },
+        { "id": "p19", "ar": "ألاحظ متى أحتاج إلى طلب المساندة بدلاً من تحمّل كل شيء وحدي.", "en": "I notice when I need to ask for support instead of carrying everything alone." },
+        { "id": "p20", "ar": "أعبّر عن تقديري للآخرين عندما يقدمون لي مساعدة أو اهتماماً.", "en": "I express appreciation when others offer help or care." }
+      ]
+    },
+    {
+      "id": "selfAwareness",
+      "ar": "الوعي بالمشاعر والتكيف",
+      "en": "Emotional awareness and adapting",
+      "questions": [
+        { "id": "p21", "ar": "أستطيع تسمية المشاعر التي أمرّ بها بدلاً من تجاهلها.", "en": "I can name the emotions I am experiencing instead of ignoring them." },
+        { "id": "p22", "ar": "ألاحظ المواقف التي تزيد توتري أو تستنزف طاقتي.", "en": "I notice situations that increase my stress or drain my energy." },
+        { "id": "p23", "ar": "أجد أساليب آمنة تساعدني على استعادة هدوئي بعد يوم صعب.", "en": "I find safe ways to regain calm after a difficult day." },
+        { "id": "p24", "ar": "أتعامل مع الأخطاء بوصفها فرصة للتعلّم لا حكماً نهائياً على نفسي.", "en": "I treat mistakes as opportunities to learn, not as a final judgment about myself." },
+        { "id": "p25", "ar": "أستطيع التكيّف تدريجياً عندما لا تسير الأمور كما خططت.", "en": "I can adapt gradually when things do not go as planned." }
+      ]
+    },
+    {
+      "id": "values",
+      "ar": "القيم والدافعية",
+      "en": "Values and motivation",
+      "questions": [
+        { "id": "p26", "ar": "أستطيع تحديد القيم التي أريد أن تعكسها اختياراتي اليومية.", "en": "I can identify the values I want my everyday choices to reflect." },
+        { "id": "p27", "ar": "أشعر أن بعض أنشطتي اليومية ترتبط بما أراه مهماً في حياتي.", "en": "I feel that some of my daily activities connect with what I find important in life." },
+        { "id": "p28", "ar": "أستطيع تمييز أهدافي الشخصية عن التوقعات التي يضعها الآخرون لي.", "en": "I can distinguish my personal goals from expectations others place on me." },
+        { "id": "p29", "ar": "أمنح وقتاً لما يبعث في نفسي الاهتمام أو الإحساس بالمعنى.", "en": "I make time for what gives me interest or a sense of meaning." },
+        { "id": "p30", "ar": "أستطيع اختيار خطوة صغيرة نحو هدف يهمني حتى عندما لا تكون الظروف مثالية.", "en": "I can take a small step toward a goal that matters to me, even when conditions are not ideal." }
+      ]
+    }
+  ],
+  "reflections": [
+    {
+      "id": "r1",
+      "ar": "ما تجربة أو إنجاز تشعر بالفخر به؟ وما الذي ساعدك على تحقيقه؟",
+      "en": "What experience or accomplishment are you proud of, and what helped you achieve it?"
+    },
+    {
+      "id": "r2",
+      "ar": "ما النشاط أو البيئة التي تساعدك على الشعور بالراحة واستعادة طاقتك؟",
+      "en": "What activity or environment helps you feel at ease and restore your energy?"
+    },
+    {
+      "id": "r3",
+      "ar": "ما جانب في حياتك ترغب في فهمه أو تطويره خلال الأشهر القادمة؟",
+      "en": "What is one area of your life you would like to understand or develop over the coming months?"
+    },
+    {
+      "id": "r4",
+      "ar": "ما نوع الدعم أو الظروف التي تساعدك عادةً على تجاوز التحديات؟",
+      "en": "What kind of support or conditions usually help you navigate challenges?"
+    }
+  ]
+}
