@@ -78,7 +78,7 @@ export default function Account() {
       }
       saveAuthToken(response.data.token);
       const next = searchParams.get('next');
-      navigate(next?.startsWith('/') && !next.startsWith('//') ? next : '/settings', { replace: true });
+      navigate(next?.startsWith('/') && !next.startsWith('//') ? next : '/assessment', { replace: true });
     } catch (requestError) {
       setError(requestError.response?.data?.message || text.error);
     } finally {

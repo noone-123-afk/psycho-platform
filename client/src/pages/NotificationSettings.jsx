@@ -52,7 +52,7 @@ export default function NotificationSettings() {
     setMessage('');
     try {
       await axios.put('/api/notifications/preferences', preferences);
-      setMessage(text.saved);
+      navigate('/assessment', { replace: true, state: { preferencesSaved: true } });
     } catch (error) {
       setMessage(error.response?.data?.message || text.error);
     } finally {

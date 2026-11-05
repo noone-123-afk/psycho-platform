@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckCircle2, ChevronRight, ChevronLeft, FileText, Headphones, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from 'axios';
 import CrisisSupportNotice from '../components/CrisisSupportNotice';
@@ -13,6 +13,7 @@ const Assessment = () => {
   const { t, i18n } = useTranslation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const isCoupleTest = searchParams.get('type') === 'couple';
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -243,6 +244,11 @@ const Assessment = () => {
   // ----------------------------------------------------
   return (
     <div style={containerStyle(i18n.language)}>
+      {location.state?.preferencesSaved && (
+        <p role="status" style={{ ...cardStyle, color: '#547863' }}>
+          {i18n.language === 'ar' ? 'تم حفظ تفضيلات البريد الإلكتروني.' : 'Email preferences saved.'}
+        </p>
+      )}
       {paymentMessage && <p role="alert" style={{ ...cardStyle, color: '#b91c1c' }}>{paymentMessage}</p>}
       {showCrisisNotice && (
         <CrisisSupportNotice onClose={() => setShowCrisisNotice(false)} />
