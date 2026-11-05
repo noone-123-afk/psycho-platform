@@ -21,7 +21,7 @@ function publicUser(user) {
     };
 }
 
-router.post('/register', async (req, res) => {
+async function registerUser(req, res) {
     const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     const password = req.body.password;
@@ -39,31 +39,15 @@ router.post('/register', async (req, res) => {
     if (email === process.env.ADMIN_EMAIL?.trim().toLowerCase()) {
         return res.status(409).json({ message: 'This email is reserved for the administrator' });
     }
-    let verificationToken;
-    let verificationUrl;
-    try {
-        verificationToken = crypto.randomBytes(32).toString('base64url');
-        verificationUrl = buildVerificationUrl(verificationToken);
-    } catch (error) {
-        return res.status(503).json({ message: error.message });
-    }
-
     try {
         const user = await User.create({
             name,
             email,
             passwordHash: await hashPassword(password),
             language,
-            emailVerificationTokenHash: crypto.createHash('sha256').update(verificationToken).digest('hex'),
-            emailVerificationExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-            verificationLastSentAt: new Date()
+            emailVerified: true
         });
-        void sendVerificationEmail(user.email, user.name, user.id, verificationUrl, user.language)
-            .catch((error) => console.error('Verification email delivery failed:', error.message));
-        return res.status(201).json({
-            verificationRequired: true,
-            message: 'Check your email to verify your account before signing in'
-        });
+        return res.status(201).json({ token: signToken(user.id), user: publicUser(user) });
     } catch (error) {
         if (error.code === 11000) {
             return res.status(409).json({ message: 'An account with this email already exists' });
@@ -71,7 +55,9 @@ router.post('/register', async (req, res) => {
         console.error('Account registration failed:', error.message);
         return res.status(500).json({ message: 'Unable to create account' });
     }
-});
+}
+
+router.post('/register', registerUser);
 
 router.post('/login', async (req, res) => {
     const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
@@ -166,3 +152,4 @@ router.get('/me', requireAuth, (req, res) => {
 });
 
 module.exports = router;
+module.exports.registerUser = registerUser;

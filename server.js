@@ -19,6 +19,7 @@ const authRoutes = require('./routes/auth');
 const notificationRoutes = require('./routes/notifications');
 
 app.use('/api/auth', authRoutes);
+app.post('/api/register', authRoutes.registerUser);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/assessment', assessmentRoutes);
