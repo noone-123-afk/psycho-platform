@@ -27,6 +27,12 @@ async function generateBookletContent(userProfile, assessmentAnswers, questions)
             ? 'Your report summarizes your responses to the project’s sample personality and strengths items. These samples are incomplete and non-standardized; the summaries are descriptive only, not a diagnosis or fixed judgment.'
             : 'يلخص التقرير إجاباتك عن عينات أسئلة الشخصية ونقاط القوة المقدمة للمشروع. هذه العينات جزئية وغير معيارية؛ والملخصات وصفية فقط وليست تشخيصاً أو حكماً ثابتاً.',
         title,
+        assessmentProfile: {
+            personality: profile.personality,
+            strengths: profile.strengths,
+            virtues: profile.virtues,
+            reflections: profile.reflections
+        },
         chapter1_mirror: english
             ? `Big Five sample — descriptive averages (1–5)\n${personalityText}\n\nCoverage is uneven and too limited for standardized trait interpretation.\n\nVIA sample — descriptive averages (1–5)\n${strengthsText}\n\nAvailable virtue group averages\n${virtuesText}`
             : `عينة السمات الخمس — متوسطات وصفية (1–5)\n${personalityText}\n\nالتغطية غير متوازنة ومحدودة، ولا تكفي لتفسير معياري للسمات.\n\nعينة VIA — متوسطات وصفية (1–5)\n${strengthsText}\n\nمتوسطات مجموعات الفضائل المتاحة\n${virtuesText}`,

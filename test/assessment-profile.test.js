@@ -70,8 +70,12 @@ test('descriptive profiles and report content use the supplied item bank and sub
     const report = await generateBookletContent({ language: 'en' }, answers, questions);
 
     assert.equal(profile.personality.length, 5);
+    assert.equal(profile.personality[0].id, 'extraversion');
     assert.equal(profile.personality[0].mean, 4);
     assert.equal(profile.reflections.length, 2);
+    assert.equal(report.assessmentProfile.personality[0].id, 'extraversion');
+    assert.equal(report.assessmentProfile.strengths.length > 0, true);
+    assert.equal(report.assessmentProfile.reflections.length, 2);
     assert.match(report.chapter3_history, /supportive childhood home/);
     assert.match(report.chapter5_roadmap, /calmer and more connected life/);
     assert.match(report.chapter2_diagnosis, /not diagnostic/i);

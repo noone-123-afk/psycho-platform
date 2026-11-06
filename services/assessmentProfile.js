@@ -89,6 +89,7 @@ function average(items, answers, valueField, language) {
         return null;
     }
     return {
+        id: answered[0].question[valueField],
         label: labels[language][answered[0].question[valueField]]
             || answered[0].question[valueField].replaceAll('_', ' '),
         mean: Number((answered.reduce((sum, item) => sum + item.value, 0) / answered.length).toFixed(2)),
@@ -113,6 +114,7 @@ function buildAssessmentProfile(questions, answers, language = 'ar') {
         strengths: groupBy(strengthsQuestions, 'strength'),
         reflections: narrativeQuestions
             .map((question) => ({
+                category: question.category,
                 prompt: language === 'en' ? question.questionEn : question.questionAr,
                 answer: answers[answerKey(question)]?.trim()
             }))
