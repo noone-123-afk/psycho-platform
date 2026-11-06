@@ -212,6 +212,7 @@ function toClientQuestion(record) {
         en: record.questionEn,
         min: record.scoreMin,
         max: record.scoreMax,
+        scoreDirection: record.scoreDirection,
         trait: record.trait,
         facet: record.facet,
         virtue: record.virtue,
