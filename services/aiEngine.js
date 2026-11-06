@@ -1,67 +1,47 @@
-const { questionnaire, scoreAssessment } = require('./assessmentProfile');
+const { buildAssessmentProfile } = require('./assessmentProfile');
 
-async function generateBookletContent(userProfile, assessmentAnswers) {
+async function generateBookletContent(userProfile, assessmentAnswers, questions) {
     const language = userProfile.language === 'en' ? 'en' : 'ar';
     const english = language === 'en';
-    const profile = scoreAssessment(assessmentAnswers, language);
-    const strongest = [...profile].sort((a, b) => b.score - a.score)[0];
-    const areaToExplore = [...profile].sort((a, b) => a.score - b.score)[0];
-    const reflectionAnswers = questionnaire.reflections
-        .map((reflection) => ({
-            prompt: reflection[language],
-            answer: assessmentAnswers[reflection.id]?.trim()
-        }))
-        .filter(({ answer }) => answer);
-    const reflection = (id) => assessmentAnswers[id]?.trim();
-    const strengths = profile.map(({ title, score, interpretation }) =>
-        `${title} (${score}/5): ${interpretation}`
+    const profile = buildAssessmentProfile(questions, assessmentAnswers, language);
+    const formatMetrics = (metrics) => metrics.map((metric) =>
+        `${metric.label}: ${metric.mean}/5 (${metric.answered}/${metric.total})`
     ).join('\n');
-    const action = {
-        connection: english
-            ? 'Choose one conversation this week in which you can express a need or listen with curiosity.'
-            : 'اختر هذا الأسبوع حواراً واحداً تعبّر فيه عن احتياج أو تنصت فيه بفضول.',
-        curiosity: english
-            ? 'Set aside a short time to explore one topic or viewpoint that is new to you.'
-            : 'خصص وقتاً قصيراً لاستكشاف موضوع أو وجهة نظر جديدة عليك.',
-        followThrough: english
-            ? 'Turn one goal into a first step that takes less than fifteen minutes.'
-            : 'حوّل هدفاً واحداً إلى خطوة أولى لا تستغرق أكثر من خمس عشرة دقيقة.',
-        cooperation: english
-            ? 'Notice one moment when you can offer support while respecting your own capacity.'
-            : 'لاحظ موقفاً واحداً يمكنك فيه تقديم الدعم مع احترام قدرتك وحدودك.',
-        selfAwareness: english
-            ? 'Pause once a day to name what you are feeling and what might help in that moment.'
-            : 'توقف مرة يومياً لتسمية ما تشعر به وما قد يساعدك في تلك اللحظة.',
-        values: english
-            ? 'Choose one small action this week that reflects something you consider important.'
-            : 'اختر هذا الأسبوع فعلاً صغيراً يعكس قيمة تعدّها مهمة.'
-    }[areaToExplore.id];
+    const reflectionText = profile.reflections.length
+        ? profile.reflections.map(({ prompt, answer }) => `${prompt}\n${answer}`).join('\n\n')
+        : (english ? 'No written reflections were submitted.' : 'لم تُرسل إجابات سردية مكتوبة.');
+    const personalityText = formatMetrics(profile.personality);
+    const strengthsText = formatMetrics(profile.strengths);
+    const virtuesText = formatMetrics(profile.virtues);
+    const futureAnswer = profile.reflections.find(({ prompt }) =>
+        prompt === questions.find((question) => question.instrument === 'NARRATIVE' && question.itemId === 5)?.[
+            english ? 'questionEn' : 'questionAr'
+        ]
+    )?.answer;
+    const narrativeCount = profile.reflections.length;
     const title = english ? 'A Reflective Map of You' : 'خريطة تأملية لذاتك';
-    const reflectionText = reflectionAnswers.length
-        ? reflectionAnswers.map(({ prompt, answer }) => `${prompt}\n${answer}`).join('\n\n')
-        : (english ? 'You chose not to add written reflections.' : 'اخترت عدم إضافة إجابات سردية.');
 
     return {
         cover_prompt: 'An original, calm abstract illustration about self-reflection and personal growth',
         free_preview: english
-            ? `Your responses point to ${strongest.title} as a resource you often draw on. ${areaToExplore.title} may be worth exploring in the context of your own experiences. These are reflection prompts, not a diagnosis or a fixed judgment.`
-            : `تشير إجاباتك إلى أن ${strongest.title} جانب تستند إليه غالباً، وقد يكون ${areaToExplore.title} مجالاً للتأمل في ضوء تجاربك وظروفك. هذه مؤشرات للتفكير وليست تشخيصاً أو حكماً ثابتاً.`,
+            ? 'Your report summarizes your responses to the project’s sample personality and strengths items. These samples are incomplete and non-standardized; the summaries are descriptive only, not a diagnosis or fixed judgment.'
+            : 'يلخص التقرير إجاباتك عن عينات أسئلة الشخصية ونقاط القوة المقدمة للمشروع. هذه العينات جزئية وغير معيارية؛ والملخصات وصفية فقط وليست تشخيصاً أو حكماً ثابتاً.',
         title,
         chapter1_mirror: english
-            ? `Your self-reported response patterns\n${strengths}`
-            : `ملامح إجاباتك كما وصفتها\n${strengths}`,
+            ? `Big Five sample — descriptive averages (1–5)\n${personalityText}\n\nCoverage is uneven and too limited for standardized trait interpretation.\n\nVIA sample — descriptive averages (1–5)\n${strengthsText}\n\nAvailable virtue group averages\n${virtuesText}`
+            : `عينة السمات الخمس — متوسطات وصفية (1–5)\n${personalityText}\n\nالتغطية غير متوازنة ومحدودة، ولا تكفي لتفسير معياري للسمات.\n\nعينة VIA — متوسطات وصفية (1–5)\n${strengthsText}\n\nمتوسطات مجموعات الفضائل المتاحة\n${virtuesText}`,
         chapter2_diagnosis: english
-            ? `This exploratory questionnaire is not a standardized psychological test and cannot diagnose a condition. Your responses are self-descriptions that may vary with context, time, and circumstances.\n\n${reflectionText}`
-            : `هذا الاستبيان التأملي ليس اختباراً نفسياً مقنناً ولا يشخّص أي حالة. إجاباتك أوصاف ذاتية قد تتغير باختلاف السياق والوقت والظروف.\n\n${reflectionText}`,
+            ? `This report is based on your self-reported answers to incomplete, project-provided samples. These items have not been established here as validated translations or standardized scales. Their averages are not diagnostic and should not be compared with population norms.\n\n${narrativeCount} optional narrative response(s) were included.\n\n${reflectionText}`
+            : `بُني التقرير على إجاباتك الذاتية عن عينات جزئية مقدمة للمشروع. لم يثبت هنا اعتماد ترجمتها أو تقنينها؛ لذلك لا تُعد متوسطاتها تشخيصاً ولا تُقارن بمعايير سكانية.\n\nأُدرجت ${narrativeCount} إجابة سردية اختيارية.\n\n${reflectionText}`,
         chapter3_history: english
-            ? `A resource you identified\nYour responses most often highlighted ${strongest.title}. ${reflection('r1') ? `You also described an experience you value: “${reflection('r1')}”` : 'You can use this section to note an experience you value and what helped you through it.'}`
-            : `جانب تستند إليه\nأبرزت إجاباتك غالباً ${strongest.title}. ${reflection('r1') ? `ووصفت تجربة تعتز بها: «${reflection('r1')}»` : 'يمكنك تدوين تجربة تعتز بها وما الذي ساعدك على خوضها.'}`,
+            ? `Your reflections\n${reflectionText}`
+            : `تأملاتك الشخصية\n${reflectionText}`,
         chapter4_literature: english
-            ? `A pause for reflection\nWhat you wrote about restoring your energy: ${reflection('r2') || 'Consider which people, places, or activities help you feel settled.'}\n\nKeep your own words as a reminder of what matters to you.`
-            : `وقفة للتأمل\nكتبت عن استعادة طاقتك: ${reflection('r2') || 'تأمل في الأشخاص أو الأماكن أو الأنشطة التي تمنحك شعوراً بالراحة.'}\n\nاحتفظ بكلماتك كتذكير بما يهمك.`,
+            ? 'Use the response summaries as prompts for reflection. They describe only the items answered and do not define you.'
+            : 'استخدم ملخصات الإجابات بوصفها أسئلة للتأمل. فهي تصف البنود التي أجبت عنها فقط ولا تختزلك في نتيجة.',
         chapter5_roadmap: english
-            ? `One small experiment\n${action}\n\nNotice what works for you, adapt it to your circumstances, and review it without judging yourself. This report is for self-reflection and does not replace professional support.`
-            : `تجربة صغيرة قابلة للتعديل\n${action}\n\nلاحظ ما يناسبك، وعدّل الخطوة وفق ظروفك، وراجع تجربتك دون إصدار أحكام على نفسك. هذا التقرير للتأمل الذاتي ولا يحل محل الدعم المهني.`
+            ? `A next step based on your own priorities\n${futureAnswer || 'Choose one goal that matters to you and identify a small, realistic first step.'}\n\nAdapt any next step to your circumstances. This reflection report does not replace professional support.`
+            : `خطوة تالية تنطلق من أولوياتك\n${futureAnswer || 'اختر هدفاً يهمك وحدد له خطوة أولى صغيرة وواقعية.'}\n\nعدّل أي خطوة وفق ظروفك. هذا التقرير التأملي لا يحل محل الدعم المهني.`
     };
 }
 

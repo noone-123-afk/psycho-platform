@@ -4,10 +4,12 @@ const { generateBookletContent, generateRelationshipBookletContent } = require('
 const { createPDFBooklet } = require('../utils/pdfGenerator');
 const { sendBookForAdminReview, sendFinalBookToUser } = require('../services/emailService');
 const Assessment = require('../models/Assessment');
+const Question = require('../models/Question');
 const path = require('path');
 const fs = require('node:fs/promises');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { validateAssessmentAnswers } = require('../services/assessmentProfile');
+const { loadQuestionnaire } = require('../services/questionCatalog');
 
 async function prepareAdminReviewCopy(assessment, userEmail, userName, userId, language) {
     try {
@@ -20,10 +22,41 @@ async function prepareAdminReviewCopy(assessment, userEmail, userName, userId, l
     }
 }
 
+router.get('/questions', requireAuth, async (_req, res) => {
+    try {
+        const questionnaire = await loadQuestionnaire(Question);
+        res.set('Cache-Control', 'no-store');
+        return res.json(questionnaire);
+    } catch (error) {
+        console.error('Assessment question catalog unavailable:', error.message);
+        return res.status(503).json({
+            message: 'Assessment questions are temporarily unavailable. Please try again shortly.'
+        });
+    }
+});
+
 router.post('/generate-book', requireAuth, async (req, res) => {
     const { answers } = req.body;
     const { id: userId, name: userName, email: userEmail } = req.authUser;
-    const validation = validateAssessmentAnswers(answers);
+    let questions;
+    try {
+        questions = await Question.find({
+            instrument: { $in: ['IPIP_NEO_SAMPLE', 'VIA_IS_R_SAMPLE', 'NARRATIVE'] }
+        }).sort({ instrument: 1, itemId: 1 }).lean();
+        if (questions.length !== 85) {
+            return res.status(503).json({
+                success: false,
+                message: 'Assessment questions are temporarily unavailable. Please try again shortly.'
+            });
+        }
+    } catch (error) {
+        console.error('Unable to load assessment questions for report:', error.message);
+        return res.status(503).json({
+            success: false,
+            message: 'Assessment questions are temporarily unavailable. Please try again shortly.'
+        });
+    }
+    const validation = validateAssessmentAnswers(answers, questions);
     if (!validation.valid) {
         return res.status(400).json({
             success: false,
@@ -35,7 +68,7 @@ router.post('/generate-book', requireAuth, async (req, res) => {
 
     try {
         const language = req.authUser.language === 'en' ? 'en' : 'ar';
-        const bookContent = await generateBookletContent({ name: userName, language }, answers);
+        const bookContent = await generateBookletContent({ name: userName, language }, answers, questions);
 
         const newAssessment = new Assessment({
             user: userId,

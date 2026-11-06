@@ -43,6 +43,7 @@ app.get(/^(?!\/api).+/, (req, res) => {
 const cron = require('node-cron');
 const Assessment = require('./models/Assessment');
 const { sendFollowUpEmail } = require('./services/emailService');
+const { seedQuestionCatalog } = require('./services/questionCatalog');
 const User = require('./models/User');
 const { hashPassword } = require('./utils/passwords');
 
@@ -147,8 +148,10 @@ app.listen(PORT, () => {
 mongoose.connect(MONGODB_URI)
   .then(async () => {
     console.log('تم الاتصال بقاعدة البيانات بنجاح');
+    const seedResult = await seedQuestionCatalog();
+    console.log(`تم تجهيز بنك الأسئلة: ${seedResult.questionCount} سؤالاً.`);
     await provisionAdministrator();
   })
   .catch((error) => {
-    console.error('خطأ في الاتصال بقاعدة البيانات:', error.message);
+    console.error('Application startup initialization failed:', error.message);
   });

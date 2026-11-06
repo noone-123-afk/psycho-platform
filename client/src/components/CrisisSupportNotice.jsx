@@ -2,9 +2,16 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
-const CrisisSupportNotice = ({ onClose }) => {
+const CrisisSupportNotice = ({ onClose, variant = 'language-signal' }) => {
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === 'ar';
+  const isScreening = variant === 'screening';
+  const title = isScreening
+    ? t('crisisScreeningTitle')
+    : t('crisisSignalTitle');
+  const message = isScreening
+    ? t('crisisScreeningMessage')
+    : t('crisisSignalMessage');
 
   return (
     <div
@@ -37,10 +44,11 @@ const CrisisSupportNotice = ({ onClose }) => {
         }}
       >
         <h2 id="crisis-notice-title" style={{ color: '#92400e' }}>
-          {t('crisisSignalTitle')}
+          {title}
         </h2>
-        <p>{t('crisisSignalMessage')}</p>
+        <p>{message}</p>
         <p>{t('crisisImmediateHelp')}</p>
+        <p>{t('crisisTrustedPerson')}</p>
         <Link
           to="/crisis"
           style={{

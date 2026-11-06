@@ -2,54 +2,77 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { generateBookletContent } = require('../services/aiEngine');
 const {
-    questionnaire,
-    validateAssessmentAnswers,
-    scoreAssessment
+    answerKey,
+    buildAssessmentProfile,
+    validateAssessmentAnswers
 } = require('../services/assessmentProfile');
+const { readQuestionRecords } = require('../services/questionCatalog');
 
-function completeAnswers() {
-    const answers = {};
-    for (const domain of questionnaire.domains) {
-        for (const question of domain.questions) {
-            answers[question.id] = domain.id === 'connection' ? 5 : 3;
-        }
-    }
-    return answers;
+async function getCatalog() {
+    return readQuestionRecords();
 }
 
-test('self-reflection questionnaire contains 30 rating items and four optional prompts', () => {
-    assert.equal(questionnaire.domains.reduce((count, domain) => count + domain.questions.length, 0), 30);
-    assert.equal(questionnaire.reflections.length, 4);
-    assert.equal(validateAssessmentAnswers(completeAnswers()).valid, true);
+function completeAnswers(questions) {
+    return Object.fromEntries(
+        questions
+            .filter(({ instrument }) => ['IPIP_NEO_SAMPLE', 'VIA_IS_R_SAMPLE'].includes(instrument))
+            .map((question) => [answerKey(question), 4])
+    );
+}
+
+test('assessment requires all personality and strengths sample items while reflections remain optional', async () => {
+    const questions = await getCatalog();
+    const answers = completeAnswers(questions);
+
+    assert.equal(Object.keys(answers).length, 80);
+    assert.equal(validateAssessmentAnswers(answers, questions).valid, true);
+
+    delete answers['IPIP_NEO_SAMPLE:1'];
+    assert.equal(validateAssessmentAnswers(answers, questions).valid, false);
 });
 
-test('assessment submission rejects missing, out-of-range, and unknown answers', () => {
-    const answers = completeAnswers();
-    delete answers.p01;
-    assert.equal(validateAssessmentAnswers(answers).valid, false);
+test('assessment rejects invalid ratings, unknown items, and health-screening responses', async () => {
+    const questions = await getCatalog();
+    const baseline = completeAnswers(questions);
 
-    const invalidRating = completeAnswers();
-    invalidRating.p01 = 6;
-    assert.equal(validateAssessmentAnswers(invalidRating).valid, false);
-
-    const unknownQuestion = completeAnswers();
-    unknownQuestion.unrecognized = 3;
-    assert.equal(validateAssessmentAnswers(unknownQuestion).valid, false);
+    assert.equal(validateAssessmentAnswers(null, questions).valid, false);
+    assert.equal(validateAssessmentAnswers({ ...baseline, 'VIA_IS_R_SAMPLE:1': 6 }, questions).valid, false);
+    assert.equal(validateAssessmentAnswers({ ...baseline, unrecognized: 2 }, questions).valid, false);
+    assert.equal(validateAssessmentAnswers({ ...baseline, 'PHQ9:1': 2 }, questions).valid, false);
 });
 
-test('profile and generated report reflect submitted scores and optional written responses', async () => {
+test('assessment accepts optional reflections and rejects overlong reflection responses', async () => {
+    const questions = await getCatalog();
+    const baseline = completeAnswers(questions);
+    const narrative = questions.find(({ instrument }) => instrument === 'NARRATIVE');
+
+    assert.equal(
+        validateAssessmentAnswers({ ...baseline, [answerKey(narrative)]: 'A short reflection.' }, questions).valid,
+        true
+    );
+    assert.equal(
+        validateAssessmentAnswers({
+            ...baseline,
+            [answerKey(narrative)]: 'x'.repeat(narrative.maxWords * 30 + 1)
+        }, questions).valid,
+        false
+    );
+});
+
+test('descriptive profiles and report content use the supplied item bank and submitted answers', async () => {
+    const questions = await getCatalog();
     const answers = {
-        ...completeAnswers(),
-        r1: 'I am proud that I completed my studies.',
-        r2: 'Walking outdoors helps me recharge.'
+        ...completeAnswers(questions),
+        'NARRATIVE:1': 'I remember a supportive childhood home.',
+        'NARRATIVE:5': 'I hope to build a calmer and more connected life.'
     };
-    const profile = scoreAssessment(answers, 'en');
-    assert.equal(profile.find(({ id }) => id === 'connection').score, 5);
-    assert.equal(profile.find(({ id }) => id === 'curiosity').score, 3);
+    const profile = buildAssessmentProfile(questions, answers, 'en');
+    const report = await generateBookletContent({ language: 'en' }, answers, questions);
 
-    const report = await generateBookletContent({ language: 'en' }, answers);
-    assert.match(report.free_preview, /Connection and relationships/);
-    assert.match(report.chapter3_history, /completed my studies/);
-    assert.match(report.chapter4_literature, /Walking outdoors/);
-    assert.match(report.chapter2_diagnosis, /not a standardized psychological test/);
+    assert.equal(profile.personality.length, 5);
+    assert.equal(profile.personality[0].mean, 4);
+    assert.equal(profile.reflections.length, 2);
+    assert.match(report.chapter3_history, /supportive childhood home/);
+    assert.match(report.chapter5_roadmap, /calmer and more connected life/);
+    assert.match(report.chapter2_diagnosis, /not diagnostic/i);
 });
