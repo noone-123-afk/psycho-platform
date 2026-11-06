@@ -1,0 +1,17 @@
+id,scale,question_number,question_ar,question_en,score_min,score_max,source
+1,PHQ-9,1,قلة الاهتمام أو الاستمتاع بممارسة الأشياء.,Little interest or pleasure in doing things.,0,3,PHQ-9
+2,PHQ-9,2,الشعور بالحزن أو اليأس أو الإحباط.,Feeling down depressed or hopeless.,0,3,PHQ-9
+3,PHQ-9,3,صعوبة في النوم أو النوم كثيراً.,Trouble falling or staying asleep or sleeping too much.,0,3,PHQ-9
+4,PHQ-9,4,الشعور بالتعب أو قلة الطاقة.,Feeling tired or having little energy.,0,3,PHQ-9
+5,PHQ-9,5,قلة الشهية أو الإفراط في الأكل.,Poor appetite or overeating.,0,3,PHQ-9
+6,PHQ-9,6,الشعور بالفشل أو خيبة الأمل لنفسك أو لعائلتك.,Feeling bad about yourself or that you are a failure.,0,3,PHQ-9
+7,PHQ-9,7,صعوبة في التركيز على الأشياء.,Trouble concentrating on things.,0,3,PHQ-9
+8,PHQ-9,8,التحرك أو التحدث ببطء ملحوظ أو العكس.,Moving or speaking so slowly that other people have noticed.,0,3,PHQ-9
+9,PHQ-9,9,أفكار عن إيذاء النفس أو عدم الرغبة في العيش.,Thoughts that you would be better off dead or of hurting yourself.,0,3,PHQ-9
+10,GAD-7,1,الشعور بالعصبية أو القلق أو التوتر.,Feeling nervous anxious or on edge.,0,3,GAD-7
+11,GAD-7,2,عدم القدرة على التوقف عن القلق أو التحكم فيه.,Not being able to stop or control worrying.,0,3,GAD-7
+12,GAD-7,3,القلق المفرط بشأن أشياء مختلفة.,Worrying too much about different things.,0,3,GAD-7
+13,GAD-7,4,صعوبة الاسترخاء.,Trouble relaxing.,0,3,GAD-7
+14,GAD-7,5,عدم الراحة لدرجة صعوبة الجلوس ساكناً.,Being so restless that it is hard to sit still.,0,3,GAD-7
+15,GAD-7,6,سهولة الانزعاج أو التهيج.,Becoming easily annoyed or irritable.,0,3,GAD-7
+16,GAD-7,7,الشعور بالخوف وكأن شيئاً سيئاً سيحدث.,Feeling afraid as if something awful might happen.,0,3,GAD-7

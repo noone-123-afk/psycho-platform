@@ -1,0 +1,51 @@
+id,trait,facet,question_ar,question_en,score_direction,source
+1,extraversion,warmth,أشعر بالراحة في التجمعات الكبيرة والحفلات.,I feel comfortable at large parties and social gatherings.,positive,IPIP-NEO
+2,extraversion,warmth,أحب أن أكون محور الانتباه.,I like to be the center of attention.,positive,IPIP-NEO
+3,extraversion,gregariousness,أستمتع بمحادثة الغرباء في الأماكن العامة.,I enjoy talking to strangers in public places.,positive,IPIP-NEO
+4,extraversion,gregariousness,أفضل قضاء الوقت مع الأصدقاء على البقاء وحدي.,I prefer spending time with friends rather than being alone.,positive,IPIP-NEO
+5,extraversion,assertiveness,أبادر ببدء المحادثات مع أشخاص جدد.,I take the initiative to start conversations with new people.,positive,IPIP-NEO
+6,extraversion,assertiveness,أتحدث كثيراً في المناسبات الاجتماعية.,I talk a lot at social events.,positive,IPIP-NEO
+7,extraversion,activity,أشعر بالنشاط والحيوية معظم الوقت.,I feel energetic and lively most of the time.,positive,IPIP-NEO
+8,extraversion,activity,أعمل بسرعة وكفاءة.,I work quickly and efficiently.,positive,IPIP-NEO
+9,extraversion,excitement_seeking,أشعر بالملل بسرعة إذا كنت وحيداً لفترة طويلة.,I get bored quickly if I'm alone for too long.,positive,IPIP-NEO
+10,extraversion,excitement_seeking,أحب المغامرة والمخاطرة.,I enjoy adventure and taking risks.,positive,IPIP-NEO
+11,extraversion,positive_emotions,أصف نفسي بالشخص المرح والمفعم بالحياة.,I describe myself as cheerful and full of life.,positive,IPIP-NEO
+12,extraversion,positive_emotions,أبتسم وأضحك كثيراً.,I smile and laugh a lot.,positive,IPIP-NEO
+13,openness,imagination,لدي خيال واسع ونشط.,I have a wide and active imagination.,positive,IPIP-NEO
+14,openness,imagination,أستمتع الأحلام اليقظة والتخيل.,I enjoy daydreaming and fantasizing.,positive,IPIP-NEO
+15,openness,artistic_interests,أقدّر الفن والجمال في حياتي.,I appreciate art and beauty in my life.,positive,IPIP-NEO
+16,openness,artistic_interests,أستمتع بالاستماع للموسيقى المعقدة.,I enjoy listening to complex music.,positive,IPIP-NEO
+17,openness,emotionality,أتأمل في مشاعري وأفكاري بعمق.,I reflect deeply on my feelings and thoughts.,positive,IPIP-NEO
+18,openness,emotionality,أكون حساساً للفنون والجمال.,I am sensitive to the arts and beauty.,positive,IPIP-NEO
+19,openness,adventurousness,أحب تجربة أشياء جديدة ومختلفة.,I like to try new and different things.,positive,IPIP-NEO
+20,openness,adventurousness,أحب السفر واستكشاف ثقافات جديدة.,I enjoy traveling and exploring new cultures.,positive,IPIP-NEO
+21,openness,intellect,أستمتع التفكير في الأمور المجردة والنظرية.,I enjoy thinking about abstract and theoretical matters.,positive,IPIP-NEO
+22,openness,intellect,أحب حل الألغاز والمسائل المعقدة.,I enjoy solving puzzles and complex problems.,positive,IPIP-NEO
+23,openness,liberalism,أحب الأفكار غير التقليدية والمبتكرة.,I like unconventional and innovative ideas.,positive,IPIP-NEO
+24,openness,liberalism,أحب النقاشات الفكرية العميقة.,I enjoy deep intellectual discussions.,positive,IPIP-NEO
+25,conscientiousness,self_efficacy,أثق بقدرتي على إنجاز المهام.,I am confident in my ability to get things done.,positive,IPIP-NEO
+26,conscientiousness,self_efficacy,أشعر بالقدرة على تحقيق أهدافي.,I feel capable of achieving my goals.,positive,IPIP-NEO
+27,conscientiousness,orderliness,أنظم أغراضي وأعمالي بعناية.,I organize my belongings and work carefully.,positive,IPIP-NEO
+28,conscientiousness,orderliness,أحرص على النظافة والترتيب.,I keep things clean and tidy.,positive,IPIP-NEO
+29,conscientiousness,dutifulness,ألتزم بوعودي والتزاماتي.,I keep my promises and commitments.,positive,IPIP-NEO
+30,conscientiousness,dutifulness,أتحمل المسؤولية عن أفعالي.,I take responsibility for my actions.,positive,IPIP-NEO
+31,conscientiousness,achievement_striving,أعمل بجد واجتهاد لتحقيق أهدافي.,I work hard and diligently to achieve my goals.,positive,IPIP-NEO
+32,conscientiousness,achievement_striving,أضع أهدافاً عالية لنفسي.,I set high goals for myself.,positive,IPIP-NEO
+33,conscientiousness,self_discipline,أحرص على إنجاز مهامي في الوقت المحدد.,I make sure to complete my tasks on time.,positive,IPIP-NEO
+34,conscientiousness,self_discipline,أتجنب التسويف والمماطلة.,I avoid procrastination and delay.,positive,IPIP-NEO
+35,conscientiousness,cautiousness,أفكر بعناية قبل اتخاذ القرارات.,I think carefully before making decisions.,positive,IPIP-NEO
+36,conscientiousness,cautiousness,أتحقق من التفاصيل قبل البدء.,I check details before starting.,positive,IPIP-NEO
+37,agreeableness,trust,أثق بنوايا الناس بشكل عام.,I trust people's intentions in general.,positive,IPIP-NEO
+38,agreeableness,trust,أعتقد أن معظم الناس طيبون.,I believe most people are kind.,positive,IPIP-NEO
+39,agreeableness,morality,أكون صادقاً وصريحاً مع الآخرين.,I am honest and straightforward with others.,positive,IPIP-NEO
+40,agreeableness,morality,أكره الكذب والخداع.,I hate lying and deception.,positive,IPIP-NEO
+41,agreeableness,altruism,أحاول مساعدة الآخرين عندما أستطيع.,I try to help others when I can.,positive,IPIP-NEO
+42,agreeableness,altruism,أهتم بمشاعر الآخرين واحتياجاتهم.,I care about others' feelings and needs.,positive,IPIP-NEO
+43,agreeableness,cooperation,أتجنب الخلافات والنزاعات قدر الإمكان.,I avoid conflicts and disputes as much as possible.,positive,IPIP-NEO
+44,agreeableness,cooperation,أكون متعاوناً في العمل الجماعي.,I am cooperative in teamwork.,positive,IPIP-NEO
+45,agreeableness,modesty,أتصرف بتواضع ولا أحب التفاخر.,I act humbly and don't like to show off.,positive,IPIP-NEO
+46,agreeableness,modesty,لا أحب أن أكون متفاخراً.,I don't like to be boastful.,positive,IPIP-NEO
+47,agreeableness,sympathy,أتعاطف مع من يمرون بمصاعب.,I sympathize with those going through difficulties.,positive,IPIP-NEO
+48,agreeableness,sympathy,أشعر بالحزن لمعاناة الآخرين.,I feel sad for others' suffering.,positive,IPIP-NEO
+49,neuroticism,anxiety,أشعر بالقلق والتوتر بسهولة.,I feel anxious and tense easily.,positive,IPIP-NEO
+50,neuroticism,anxiety,أقلق بشأن الأشياء الصغيرة.,I worry about small things.,positive,IPIP-NEO

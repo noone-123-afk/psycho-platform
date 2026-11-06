@@ -1,0 +1,31 @@
+id,virtue,strength,question_ar,question_en,score_direction,source
+1,wisdom,creativity,أبحث دائماً عن طرق مبتكرة لحل المشاكل.,I always look for creative ways to solve problems.,positive,VIA-IS-R
+2,wisdom,creativity,أستمتع التفكير في حلول غير تقليدية.,I enjoy thinking of unconventional solutions.,positive,VIA-IS-R
+3,wisdom,curiosity,أشعر بفضول عميق تجاه العالم من حولي.,I feel deep curiosity about the world around me.,positive,VIA-IS-R
+4,wisdom,curiosity,أستمتع استكشاف أشياء جديدة.,I enjoy exploring new things.,positive,VIA-IS-R
+5,wisdom,open_mindedness,أنظر للأمور من زوايا مختلفة قبل اتخاذ قرار.,I look at things from different perspectives before making a decision.,positive,VIA-IS-R
+6,wisdom,open_mindedness,أستطيع تقييم المواقف بموضوعية وواقعية.,I can evaluate situations objectively and realistically.,positive,VIA-IS-R
+7,wisdom,love_of_learning,أستمتع تعلم أشياء جديدة كل يوم.,I enjoy learning new things every day.,positive,VIA-IS-R
+8,wisdom,love_of_learning,أبحث عن فرص للتعلم والنمو.,I seek opportunities for learning and growth.,positive,VIA-IS-R
+9,wisdom,perspective,أستطيع تقديم نصائح جيدة للآخرين.,I can give good advice to others.,positive,VIA-IS-R
+10,wisdom,perspective,أرى الأمور من منظور واسع وشامل.,I see things from a broad and comprehensive perspective.,positive,VIA-IS-R
+11,courage,bravery,أتصرف بشجاعة حتى عندما أشعر بالخوف.,I act bravely even when I feel afraid.,positive,VIA-IS-R
+12,courage,bravery,لا أتجنب المواقف الصعبة.,I don't avoid difficult situations.,positive,VIA-IS-R
+13,courage,perseverance,لا أتراجع عن موقفي حتى لو واجهت مقاومة.,I don't back down from my position even if I face resistance.,positive,VIA-IS-R
+14,courage,perseverance,أواصل العمل حتى لو كان صعباً.,I continue working even if it's difficult.,positive,VIA-IS-R
+15,courage,honesty,أقول الحقيقة حتى لو كانت صعبة.,I tell the truth even if it's difficult.,positive,VIA-IS-R
+16,courage,honesty,أكون صادقاً مع نفسي والآخرين.,I am honest with myself and others.,positive,VIA-IS-R
+17,courage,zest,أتحمس لتجربة أشياء جديدة ومغامرات.,I get excited about trying new things and adventures.,positive,VIA-IS-R
+18,courage,zest,أعيش الحياة بحماس ونشاط.,I live life with enthusiasm and energy.,positive,VIA-IS-R
+19,humanity,love,أقدّر العلاقات العميقة والحميمة.,I value deep and intimate relationships.,positive,VIA-IS-R
+20,humanity,love,أشعر بالارتباط العاطفي القريب.,I feel close emotional connections.,positive,VIA-IS-R
+21,humanity,kindness,أهتم بصدق لمشاعر الآخرين ومعاناتهم.,I genuinely care about others' feelings and suffering.,positive,VIA-IS-R
+22,humanity,kindness,أساعد الآخرين بسخاء.,I help others generously.,positive,VIA-IS-R
+23,humanity,social_intelligence,أستطيع فهم مشاعر الآخرين بعمق.,I can understand others' feelings deeply.,positive,VIA-IS-R
+24,humanity,social_intelligence,أعرف كيف أتعامل مع المواقف الاجتماعية.,I know how to handle social situations.,positive,VIA-IS-R
+25,justice,fairness,أؤمن بأن جميع الناس يستحقون معاملة عادلة.,I believe all people deserve fair treatment.,positive,VIA-IS-R
+26,justice,fairness,أعامل الجميع بنفس المعايير.,I treat everyone by the same standards.,positive,VIA-IS-R
+27,justice,leadership,أساعد في اتخاذ القرارات الجماعية بعدل.,I help make group decisions fairly.,positive,VIA-IS-R
+28,justice,leadership,أستطيع تنظيم المجموعات وتحقيق الأهداف.,I can organize groups and achieve goals.,positive,VIA-IS-R
+29,justice,teamwork,أكون متعاوناً وفعالاً في الفريق.,I am cooperative and effective in a team.,positive,VIA-IS-R
+30,justice,teamwork,أعمل بجد من أجل نجاح المجموعة.,I work hard for the group's success.,positive,VIA-IS-R
