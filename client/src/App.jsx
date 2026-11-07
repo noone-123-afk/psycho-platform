@@ -9,13 +9,13 @@ import AdminCrisisIncidentDetails from './pages/AdminCrisisIncidentDetails'
 import FollowupList from './pages/FollowupList'
 import FollowupSubmit from './pages/FollowupSubmit'
 import FollowupProgress from './pages/FollowupProgress'
-import DisclaimerPage from './pages/legal/Disclaimer'
-import PrivacyPage from './pages/legal/Privacy'
 import CrisisPage from './pages/Crisis'
 import Account from './pages/Account'
 import NotificationSettings from './pages/NotificationSettings'
 import VerifyEmail from './pages/VerifyEmail'
 import Footer from './components/Footer'
+
+// ✅ استيراد موحد للصفحات القانونية (تم حذف التكرار القديم)
 import { DisclaimerPage, PrivacyPage, TermsPage } from './pages/LegalPages'
 
 // مكون مساعد لتحديث لغة واتجاه الصفحة ومراقبة التنقل
@@ -45,16 +45,18 @@ const AppWrapper = () => {
         <Route path="/followup" element={<FollowupList />} />
         <Route path="/followup/submit" element={<FollowupSubmit />} />
         <Route path="/followup/progress" element={<FollowupProgress />} />
+        
+        {/* ✅ مسارات الصفحات القانونية (تم إزالة التكرار) */}
         <Route path="/legal/disclaimer" element={<DisclaimerPage />} />
         <Route path="/legal/privacy" element={<PrivacyPage />} />
+        <Route path="/legal/terms" element={<TermsPage />} />
+        
         <Route path="/crisis" element={<CrisisPage />} />
         <Route path="/account" element={<Account />} />
         <Route path="/settings" element={<NotificationSettings />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
-        <Route path="/legal/disclaimer" element={<DisclaimerPage />} />
-        <Route path="/legal/privacy" element={<PrivacyPage />} />
-        <Route path="/legal/terms" element={<TermsPage />} />
       </Routes>
+      
       {location.pathname !== '/crisis' && (
         <Link
           to="/crisis"
@@ -76,16 +78,3 @@ const AppWrapper = () => {
         </Link>
       )}
       <Footer />
-    </div>
-  );
-};
-
-function App() {
-  return (
-    <Router>
-      <AppWrapper />
-    </Router>
-  )
-}
-
-export default App
