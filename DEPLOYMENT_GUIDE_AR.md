@@ -28,7 +28,8 @@
 *   `MONGODB_URI` = رابط MongoDB Atlas.
 *   `AUTH_TOKEN_SECRET` = قيمة عشوائية سرية لا تقل عن 32 بايت؛ لا تستخدم القيمة المثال.
 *   `ADMIN_EMAIL` و`ADMIN_PASSWORD` = بيانات حساب الإدارة؛ تُنشأ/تُحدّث كلمة مروره عند تشغيل الخدمة، ويجب أن تكون 12 حرفاً على الأقل.
-*   `PAYPAL_ENV` = `sandbox` للاختبار أو `live` للمدفوعات الحقيقية، مع بيانات التطبيق المطابقة للبيئة.
+*   `PAYPAL_ENV` = `sandbox` للاختبار أو `live` للمدفوعات الحقيقية، مع بيانات التطبيق المطابقة للبيئة. خزّن بيانات Live كأسرار في Render ولا تخلطها ببيانات Sandbox.
+*   `PAYPAL_WEBHOOK_ID` = معرّف Webhook من تطبيق PayPal في البيئة نفسها؛ راجع [دليل Webhooks](./docs/PAYPAL_SETUP.md).
 *   `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` = إعدادات SMTP وكلمة مرور التطبيق.
 *   `FROM_EMAIL`, `FROM_NAME` = اسم وعنوان المرسل الموثقين لدى مزود البريد.
 *   `FRONTEND_URL` = عنوان HTTPS العام للموقع في الإنتاج.

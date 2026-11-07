@@ -7,9 +7,10 @@ const Assessment = require('../models/Assessment');
 const Question = require('../models/Question');
 const path = require('path');
 const fs = require('node:fs/promises');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireAdmin, requireRole } = require('../middleware/auth');
 const { validateAssessmentAnswers } = require('../services/assessmentProfile');
 const { loadQuestionnaire } = require('../services/questionCatalog');
+const { scheduleFollowups } = require('../services/followupService');
 
 async function prepareAdminReviewCopy(assessment, userEmail, userName, userId, language) {
     try {
@@ -78,6 +79,24 @@ router.post('/generate-book', requireAuth, async (req, res) => {
         });
         await newAssessment.save();
 
+        try {
+            await scheduleFollowups({
+                userId,
+                assessmentId: newAssessment.id,
+                assessedAt: newAssessment.createdAt
+            });
+        } catch (error) {
+            console.error(`Assessment ${newAssessment.id} was saved, but follow-up scheduling failed:`, error.message);
+            return res.status(503).json({
+                success: false,
+                assessmentId: newAssessment.id,
+                followupsScheduled: false,
+                message: language === 'en'
+                    ? 'Your assessment was saved, but follow-ups could not be scheduled. Please retry scheduling from your account.'
+                    : 'تم حفظ تقييمك، لكن تعذرت جدولة المتابعات. يرجى إعادة المحاولة من حسابك.'
+            });
+        }
+
         void prepareAdminReviewCopy(newAssessment, userEmail, userName, userId, language);
 
         return res.json({
@@ -101,7 +120,7 @@ router.post('/generate-book', requireAuth, async (req, res) => {
 });
 
 // مسار للإدارة: تعديل نص الكتاب قبل الاعتماد
-router.put('/admin/edit-book/:assessmentId', requireAuth, requireAdmin, async (req, res) => {
+router.put('/admin/edit-book/:assessmentId', requireAuth, requireAdmin, requireRole('owner', 'admin'), async (req, res) => {
     const { assessmentId } = req.params;
     const { updatedBookContent } = req.body; // كائن يحتوي على الفصول المعدلة
 
@@ -123,7 +142,7 @@ router.put('/admin/edit-book/:assessmentId', requireAuth, requireAdmin, async (r
 });
 
 // مسار للإدارة: اعتماد الكتاب وإرساله للعميل
-router.post('/admin/approve-book/:assessmentId', requireAuth, requireAdmin, async (req, res) => {
+router.post('/admin/approve-book/:assessmentId', requireAuth, requireAdmin, requireRole('owner', 'admin'), async (req, res) => {
     const { assessmentId } = req.params;
 
     try {

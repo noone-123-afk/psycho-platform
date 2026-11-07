@@ -91,10 +91,26 @@ async function requireAuth(req, res, next) {
 
 function requireAdmin(req, res, next) {
     const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
-    if (!adminEmail || req.authUser?.email !== adminEmail || !req.authUser?.isAdmin) {
+    const isConfiguredOwner = Boolean(
+        adminEmail &&
+        req.authUser?.email === adminEmail &&
+        req.authUser?.isAdmin
+    );
+    const role = req.authUser?.adminRole || (isConfiguredOwner ? 'owner' : null);
+    if (!req.authUser?.isAdmin || !['owner', 'admin', 'psychologist', 'support'].includes(role)) {
         return res.status(403).json({ message: 'Administrator access required' });
     }
+    req.adminRole = role;
     return next();
 }
 
-module.exports = { requireAuth, requireAdmin, signToken, verifyToken };
+function requireRole(...allowedRoles) {
+    return (req, res, next) => {
+        if (!allowedRoles.includes(req.adminRole)) {
+            return res.status(403).json({ message: 'This action is not permitted for your administrator role' });
+        }
+        return next();
+    };
+}
+
+module.exports = { requireAuth, requireAdmin, requireRole, signToken, verifyToken };

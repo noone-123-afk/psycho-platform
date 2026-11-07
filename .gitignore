@@ -1,6 +1,7 @@
 node_modules/
 temp/
 .env
+.env.production
 client/node_modules/
 client/dist/
 frontend/node_modules/

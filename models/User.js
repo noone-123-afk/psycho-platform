@@ -11,6 +11,11 @@ const UserSchema = new mongoose.Schema({
   emailVerificationExpiresAt: { type: Date, select: false },
   verificationLastSentAt: { type: Date, select: false },
   isAdmin: { type: Boolean, default: false },
+  adminRole: {
+    type: String,
+    enum: ['owner', 'admin', 'psychologist', 'support'],
+    default: null
+  },
   language: { type: String, enum: ['ar', 'en'], default: 'ar' },
   notificationPreferences: {
     welcomeEmail: { type: Boolean, default: true },

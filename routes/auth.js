@@ -13,11 +13,14 @@ const router = express.Router();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function publicUser(user) {
+    const configuredOwner = process.env.ADMIN_EMAIL?.trim().toLowerCase() === user.email &&
+        user.isAdmin;
     return {
         id: user.id,
         name: user.name,
         email: user.email,
-        language: user.language
+        language: user.language,
+        adminRole: user.adminRole || (configuredOwner ? 'owner' : null)
     };
 }
 

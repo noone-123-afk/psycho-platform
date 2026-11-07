@@ -1,0 +1,13 @@
+{
+  "assessment": {
+    "title": "Comprehensive Personality Assessment",
+    "saving": "Saving your progress automatically...",
+    "crisis_alert": {
+      "title": "We are concerned about you",
+      "message": "It seems you are going through a difficult time. Your life matters, and there is someone who can help you now.",
+      "call_now": "Call Helpline Now",
+      "alternative": "Alternative Number",
+      "you_are_not_alone": "You are not alone. Please talk to someone you trust or go to the nearest hospital."
+    }
+  }
+}

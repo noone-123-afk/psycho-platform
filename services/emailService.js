@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const crypto = require('node:crypto');
+const fs = require('node:fs/promises');
 const EmailLog = require('../models/EmailLog');
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -63,6 +64,71 @@ function createTransporter() {
     };
 }
 
+function getSendGridSender() {
+    const apiKey = process.env.SENDGRID_API_KEY?.trim();
+    const from = process.env.FROM_EMAIL?.trim().toLowerCase();
+    const fromName = process.env.FROM_NAME?.trim() || 'بوصلة النفس';
+    if (!apiKey || !from || !EMAIL_PATTERN.test(from) || /[\r\n]/.test(fromName)) {
+        throw new Error('SENDGRID_API_KEY and a valid verified FROM_EMAIL are required');
+    }
+    return { apiKey, from, fromName };
+}
+
+async function sendWithSendGrid({ to, subject, ...message }) {
+    const { apiKey, from, fromName } = getSendGridSender();
+    const content = [];
+    if (typeof message.text === 'string' && message.text) {
+        content.push({ type: 'text/plain', value: message.text });
+    }
+    if (typeof message.html === 'string' && message.html) {
+        content.push({ type: 'text/html', value: message.html });
+    }
+    if (content.length === 0) {
+        throw new Error('Email must include plain-text or HTML content');
+    }
+
+    const attachments = [];
+    for (const attachment of message.attachments || []) {
+        let data;
+        if (typeof attachment.content === 'string' || Buffer.isBuffer(attachment.content)) {
+            data = Buffer.from(attachment.content);
+        } else if (attachment.path) {
+            data = await fs.readFile(attachment.path);
+        } else {
+            throw new Error('Email attachment must provide content or a file path');
+        }
+        attachments.push({
+            content: data.toString('base64'),
+            filename: attachment.filename || 'attachment',
+            type: attachment.contentType || attachment.type || 'application/octet-stream',
+            disposition: attachment.disposition || 'attachment'
+        });
+    }
+
+    const payload = {
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: from, name: fromName },
+        subject,
+        content,
+        ...(message.replyTo ? { reply_to: { email: message.replyTo } } : {}),
+        ...(attachments.length ? { attachments } : {})
+    };
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+            authorization: `Bearer ${apiKey}`,
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(15000)
+    });
+    if (!response.ok) {
+        const error = new Error(`SendGrid request failed with status ${response.status}`);
+        error.code = `SENDGRID_HTTP_${response.status}`;
+        throw error;
+    }
+}
+
 async function logDelivery({ to, subject, kind, status, error, userId, idempotencyKey }) {
     await EmailLog.create({
         toEmail: to,
@@ -93,11 +159,13 @@ async function sendTrackedEmail({ to, subject, kind, userId, idempotencyKey, ...
         }
     }
 
-    let transporter;
-    let from;
     try {
-        ({ transporter, from } = createTransporter());
-        await transporter.sendMail({ ...message, from, to: recipient, subject });
+        if (process.env.SENDGRID_API_KEY?.trim()) {
+            await sendWithSendGrid({ ...message, to: recipient, subject });
+        } else {
+            const { transporter, from } = createTransporter();
+            await transporter.sendMail({ ...message, from, to: recipient, subject });
+        }
     } catch (error) {
         try {
             await logDelivery({
@@ -208,6 +276,41 @@ async function sendFollowUpEmail(toEmail, userName, userId, language = 'ar', ass
     });
 }
 
+async function sendScheduledFollowupReminderEmail({
+    email,
+    name,
+    userId,
+    language = 'ar',
+    followupNumber,
+    followupId
+}) {
+    const english = language === 'en';
+    const title = english
+        ? `Your follow-up assessment is ready, ${escapeHtml(name)}`
+        : `حان موعد تقييم المتابعة يا ${escapeHtml(name)}`;
+    const followupUrl = escapeHtml(getFrontendPath('/followup'));
+    const body = english
+        ? `<p>Follow-up assessment ${followupNumber} of 3 is now available. You can complete it whenever you are ready.</p><p><a href="${followupUrl}" style="color:#547863">Open follow-up assessments</a></p>`
+        : `<p>أصبح تقييم المتابعة رقم ${followupNumber} متاحاً الآن. يمكنك إكماله عندما تكون مستعداً.</p><p><a href="${followupUrl}" style="color:#547863">عرض التقييمات الدورية</a></p>`;
+
+    await sendTrackedEmail({
+        to: email,
+        subject: english ? 'Your follow-up assessment is ready' : 'حان موعد تقييم المتابعة',
+        kind: 'followup_assessment_reminder',
+        userId,
+        idempotencyKey: `followup-reminder-${followupId}`,
+        html: emailLayout({
+            language: english ? 'en' : 'ar',
+            title,
+            body,
+            settingsUrl: getSettingsUrl()
+        }),
+        text: english
+            ? `Hello ${name}, follow-up assessment ${followupNumber} is now available: ${getFrontendPath('/followup')}`
+            : `مرحباً ${name}، تقييم المتابعة رقم ${followupNumber} متاح الآن: ${getFrontendPath('/followup')}`
+    });
+}
+
 async function sendFeedbackToAdmin(userEmail, subject, message) {
     if (!ADMIN_EMAIL || !EMAIL_PATTERN.test(ADMIN_EMAIL)) {
         throw new Error('ADMIN_EMAIL must be configured to receive feedback');
@@ -275,9 +378,11 @@ module.exports = {
     sendFeedbackToAdmin,
     sendStatsReport,
     sendFollowUpEmail,
+    sendScheduledFollowupReminderEmail,
     sendBookForAdminReview,
     sendFinalBookToUser,
     sendTrackedEmail,
+    sendWithSendGrid,
     sendVerificationEmail,
     buildVerificationUrl,
     escapeHtml

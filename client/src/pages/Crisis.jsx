@@ -1,10 +1,32 @@
-import React from 'react';
+import React, { useState } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { hasAuthToken } from '../utils/auth';
 
 const CrisisPage = () => {
   const { t, i18n } = useTranslation();
   const isArabic = i18n.language === 'ar';
+  const [consent, setConsent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [requestSent, setRequestSent] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submitContactRequest(event) {
+    event.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      await axios.post('/api/crisis-reports', { consent: true });
+      setRequestSent(true);
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || (
+        isArabic ? 'تعذر إرسال الطلب الآن. حاول مجدداً لاحقاً.' : 'Unable to send your request right now. Please try again later.'
+      ));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <main
@@ -65,6 +87,79 @@ const CrisisPage = () => {
           >
             {t('crisisOpenDirectory')}
           </a>
+        </section>
+
+        <section
+          aria-labelledby="crisis-contact-title"
+          style={{
+            margin: '24px 0',
+            padding: '20px',
+            border: '1px solid #cbd5e1',
+            borderRadius: '12px',
+            background: '#f8fafc',
+          }}
+        >
+          <h2 id="crisis-contact-title" style={{ marginTop: 0 }}>
+            {isArabic ? 'طلب تواصل اختياري' : 'Optional contact request'}
+          </h2>
+          <p>
+            {isArabic
+              ? 'يمكنك طلب أن يتواصل معك فريق الدعم باستخدام بريد حسابك. هذا الطلب ليس خدمة طوارئ ولا يضمن الرد أو زمنه.'
+              : 'You may ask the support team to contact you using your account email. This is not an emergency service and does not guarantee a response or response time.'}
+          </p>
+          <p style={{ marginTop: '10px', color: '#475569', fontSize: '0.92rem' }}>
+            {isArabic
+              ? 'نحفظ طلب التواصل وحالته فقط؛ لا نحفظ نص إجاباتك أو نتائج الفحص الصحي. تُحذف بيانات الطلب وسجل مراجعته بعد 90 يوماً.'
+              : 'Only the contact request and its status are stored; your answers and health-screening results are not. The request and its review log are deleted after 90 days.'}
+          </p>
+          {!hasAuthToken() ? (
+            <Link
+              to="/account?mode=login&next=%2Fcrisis"
+              style={{ display: 'inline-block', marginTop: '16px', color: '#1d4ed8', fontWeight: 700 }}
+            >
+              {isArabic ? 'سجّل الدخول لطلب التواصل' : 'Sign in to request contact'}
+            </Link>
+          ) : requestSent ? (
+            <p role="status" style={{ marginTop: '16px', color: '#166534', fontWeight: 700 }}>
+              {isArabic ? 'تم إرسال طلبك. لا يعني ذلك ضمان التواصل.' : 'Your request was submitted. This does not guarantee follow-up.'}
+            </p>
+          ) : (
+            <form onSubmit={submitContactRequest} style={{ marginTop: '16px' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(event) => setConsent(event.target.checked)}
+                  required
+                />
+                <span>
+                  {isArabic
+                    ? 'أوافق على حفظ طلب التواصل وربطه بحسابي، ليتمكن فريق الدعم المخوّل من رؤية اسمي وبريدي الإلكتروني.'
+                    : 'I agree to store this contact request linked to my account so authorized support staff can see my name and email address.'}
+                </span>
+              </label>
+              {error && <p role="alert" style={{ marginTop: '10px', color: '#b91c1c' }}>{error}</p>}
+              <button
+                type="submit"
+                disabled={!consent || submitting}
+                style={{
+                  marginTop: '14px',
+                  padding: '10px 16px',
+                  border: 0,
+                  borderRadius: '8px',
+                  background: !consent || submitting ? '#94a3b8' : '#1d4ed8',
+                  color: '#fff',
+                  font: 'inherit',
+                  fontWeight: 700,
+                  cursor: !consent || submitting ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {submitting
+                  ? (isArabic ? 'جارٍ الإرسال…' : 'Sending…')
+                  : (isArabic ? 'إرسال طلب التواصل' : 'Send contact request')}
+              </button>
+            </form>
+          )}
         </section>
 
         <p role="note" style={{ color: '#64748b', fontSize: '0.92rem' }}>

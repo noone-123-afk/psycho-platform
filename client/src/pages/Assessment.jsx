@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, FileText, Headphones, Download } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import axios from 'axios';
+import SEO from '../components/SEO';
 import AssessmentQuestionnaire from '../components/AssessmentQuestionnaire';
 import { hasAuthToken } from '../utils/auth';
 
@@ -83,7 +84,12 @@ const Assessment = () => {
   if (isFinished) {
     return (
       <div style={containerStyle(i18n.language)}>
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={cardStyle}>
+        <SEO 
+          title={t('assessmentTitle', { defaultValue: 'Assessment' })} 
+          description={t('assessmentSubtitle', { defaultValue: 'Take your personal assessment' })} 
+          path="/assessment" 
+        />
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={cardStyle}>
           
           {downloadUrl ? (
               <div style={{ textAlign: 'center', padding: '30px' }}>
@@ -159,6 +165,11 @@ const Assessment = () => {
                   </PayPalScriptProvider>}
               </>
           )}
+          <p style={{ marginTop: '24px', textAlign: 'center' }}>
+            <Link to="/followup" style={{ color: '#547863', fontWeight: 700 }}>
+              {i18n.language === 'ar' ? 'عرض التقييمات الدورية ومتابعة التقدم' : 'View follow-ups and track progress'}
+            </Link>
+          </p>
           {healthScores.length > 0 && (
             <aside className="health-score-summary" aria-live="polite">
                   <h3>{i18n.language === 'ar' ? 'نتيجة الفحص الاختياري' : 'Optional screening results'}</h3>

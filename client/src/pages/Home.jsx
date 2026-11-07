@@ -4,6 +4,7 @@ import { Globe, BookOpen, Users, Brain, Lightbulb, Heart, Feather } from 'lucide
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { hasAuthToken } from '../utils/auth';
+import SEO from '../components/SEO';
 
 const Home = () => {
   const { t, i18n } = useTranslation();
@@ -17,12 +18,17 @@ const Home = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #ffffff 0%, #fdfbf7 50%, #f5f0e6 100%)', // خلفية هادئة متدرجة بين الأبيض والبيج
+      background: 'linear-gradient(135deg, #ffffff 0%, #fdfbf7 50%, #f5f0e6 100%)',
       fontFamily: i18n.language === 'ar' ? '"Tajawal", sans-serif' : '"Segoe UI", sans-serif',
-      color: '#000000', // نص باللون الأسود كما طلبت
+      color: '#000000',
       display: 'flex',
       flexDirection: 'column'
     }}>
+      <SEO 
+        title={t('appName')} 
+        description={t('homeSubtitle')} 
+        path="/" 
+      />
       
       {/* شريط التنقل (Header) */}
       <header style={{ padding: '20px 40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #eaeaea' }}>
@@ -142,8 +148,11 @@ const Home = () => {
       </main>
 
       {/* التذييل (Footer) */}
-      <footer style={{ padding: '20px', textAlign: 'center', color: '#555555', fontSize: '0.9rem', backgroundColor: 'transparent' }}>
+      <footer style={{ padding: '20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px 20px', textAlign: 'center', color: '#555555', fontSize: '0.9rem', backgroundColor: 'transparent' }}>
         {t('footer')}
+        <Link to="/legal/disclaimer">{i18n.language === 'ar' ? 'إخلاء المسؤولية' : 'Disclaimer'}</Link>
+        <Link to="/legal/privacy">{i18n.language === 'ar' ? 'الخصوصية' : 'Privacy'}</Link>
+        <Link to="/legal/terms">{i18n.language === 'ar' ? 'شروط الاستخدام' : 'Terms'}</Link>
       </footer>
 
     </div>

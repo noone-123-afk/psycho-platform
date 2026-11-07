@@ -8,13 +8,13 @@ const fields = {
   ar: [
     ['welcomeEmail', 'رسائل الترحيب'],
     ['bookReadyEmail', 'إشعار جاهزية التقرير'],
-    ['followUpEmails', 'رسائل المتابعة بعد استلام التقرير'],
+    ['followUpEmails', 'رسائل المتابعة والتقييمات الدورية'],
     ['marketingEmails', 'الرسائل والعروض التسويقية']
   ],
   en: [
     ['welcomeEmail', 'Welcome messages'],
     ['bookReadyEmail', 'Report-ready notifications'],
-    ['followUpEmails', 'Follow-up messages after receiving a report'],
+    ['followUpEmails', 'Follow-up and periodic assessment emails'],
     ['marketingEmails', 'Marketing messages and offers']
   ]
 };

@@ -7,8 +7,19 @@ require('dotenv').config();
 const app = express();
 
 // Middleware
-app.use(cors());
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:4173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+app.use(cors({ origin: allowedOrigins }));
 app.use(express.json({ limit: '1mb' }));
+
+app.get('/api/health', (_req, res) => {
+    const databaseReady = mongoose.connection.readyState === 1;
+    return res.status(databaseReady ? 200 : 503).json({
+        status: databaseReady ? 'ok' : 'unavailable'
+    });
+});
 
 // Routes
 const paymentRoutes = require('./routes/payment');
@@ -17,7 +28,12 @@ const feedbackRoutes = require('./routes/feedback');
 const userFeaturesRoutes = require('./routes/userFeatures');
 const authRoutes = require('./routes/auth');
 const notificationRoutes = require('./routes/notifications');
+const crisisReportRoutes = require('./routes/crisisReports');
+const adminRoutes = require('./routes/admin');
+const followupRoutes = require('./routes/followups');
+const paypalWebhookRoutes = require('./routes/webhooks');
 
+app.use('/api/webhooks', paypalWebhookRoutes);
 app.use('/api/auth', authRoutes);
 app.post('/api/register', authRoutes.registerUser);
 app.use('/api/notifications', notificationRoutes);
@@ -25,6 +41,9 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/assessment', assessmentRoutes);
 app.use('/api/feedback', feedbackRoutes);
 app.use('/api/user', userFeaturesRoutes);
+app.use('/api/crisis-reports', crisisReportRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/followup', followupRoutes);
 
 const fs = require('fs');
 if (!fs.existsSync(path.join(__dirname, 'temp'))) {
@@ -43,6 +62,7 @@ app.get(/^(?!\/api).+/, (req, res) => {
 const cron = require('node-cron');
 const Assessment = require('./models/Assessment');
 const { sendFollowUpEmail } = require('./services/emailService');
+const { processDueFollowupReminders } = require('./services/followupReminderService');
 const { seedQuestionCatalog } = require('./services/questionCatalog');
 const User = require('./models/User');
 const { hashPassword } = require('./utils/passwords');
@@ -57,11 +77,16 @@ async function provisionAdministrator() {
     if (password.length < 12 || Buffer.byteLength(process.env.AUTH_TOKEN_SECRET || '', 'utf8') < 32) {
         throw new Error('ADMIN_PASSWORD must be at least 12 characters and AUTH_TOKEN_SECRET at least 32 bytes');
     }
+    await User.updateMany(
+        { adminRole: 'owner', email: { $ne: email } },
+        { $set: { isAdmin: false, adminRole: null } }
+    );
     await User.findOneAndUpdate(
         { email },
         {
             $set: {
                 isAdmin: true,
+                adminRole: 'owner',
                 emailVerified: true,
                 passwordHash: await hashPassword(password)
             },
@@ -135,6 +160,14 @@ cron.schedule('0 12 * * *', async () => {
     }
 });
 
+cron.schedule('*/15 * * * *', async () => {
+    try {
+        await processDueFollowupReminders();
+    } catch (error) {
+        console.error('Scheduled follow-up reminder job failed:', error.message);
+    }
+});
+
 // تحديد المنفذ ورابط قاعدة البيانات
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/psycho_platform';
@@ -150,6 +183,13 @@ mongoose.connect(MONGODB_URI)
     console.log('تم الاتصال بقاعدة البيانات بنجاح');
     const seedResult = await seedQuestionCatalog();
     console.log(`تم تجهيز بنك الأسئلة: ${seedResult.questionCount} سؤالاً.`);
+    await Promise.all([
+        require('./models/CrisisReport').createIndexes(),
+        require('./models/AdminAction').createIndexes(),
+        require('./models/FollowupAssessment').createIndexes(),
+        require('./models/FollowupReminder').createIndexes(),
+        require('./models/WebhookEvent').createIndexes()
+    ]);
     await provisionAdministrator();
   })
   .catch((error) => {

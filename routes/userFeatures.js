@@ -3,6 +3,9 @@ const router = express.Router();
 const User = require('../models/User');
 const Assessment = require('../models/Assessment');
 const EmailLog = require('../models/EmailLog');
+const CrisisReport = require('../models/CrisisReport');
+const FollowupAssessment = require('../models/FollowupAssessment');
+const FollowupReminder = require('../models/FollowupReminder');
 const { requireAuth } = require('../middleware/auth');
 const fs = require('node:fs/promises');
 const path = require('node:path');
@@ -25,6 +28,9 @@ router.delete('/self-destruct/:userId', requireAuth, async (req, res) => {
             fs.rm(path.join(__dirname, '..', 'temp', fileName), { force: true })
         ));
         await Assessment.deleteMany({ user: userId });
+        await CrisisReport.deleteMany({ user: userId });
+        await FollowupAssessment.deleteMany({ user: userId });
+        await FollowupReminder.deleteMany({ user: userId });
         await EmailLog.updateMany(
             { user: userId },
             { $set: { user: null, toEmail: 'deleted@redacted.invalid' } }

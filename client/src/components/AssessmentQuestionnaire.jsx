@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
-import CrisisSupportNotice from './CrisisSupportNotice';
+import CrisisAlertModal from './CrisisAlertModal';
 import QuestionCard from './QuestionCard';
 import { hasPotentialCrisisSignal } from '../utils/crisisSignals';
 import { getAuthUserId } from '../utils/auth';
@@ -117,6 +117,7 @@ export default function AssessmentQuestionnaire({ onComplete }) {
   const [narrativeConsent, setNarrativeConsent] = useState(savedDraft.narrativeConsent);
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false);
   const [showSafetyNotice, setShowSafetyNotice] = useState(false);
+  const [isCrisisAlertOpen, setIsCrisisAlertOpen] = useState(false);
   const [error, setError] = useState('');
   const [draftWarning, setDraftWarning] = useState(savedDraft.warning);
   const [isLoading, setIsLoading] = useState(true);
@@ -237,9 +238,21 @@ export default function AssessmentQuestionnaire({ onComplete }) {
     setIsSubmitting(true);
     setError('');
     try {
-      const response = await axios.post('/api/assessment/generate-book', { answers: submittedAnswers });
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Assessment submission failed');
+      const response = await axios.post('/api/assessment/save-progress', { 
+        userId: getAuthUserId(),
+        narrativeData: submittedAnswers,
+        healthScreening: healthScores
+      });
+
+      if (response.data.crisisDetected) {
+        setIsCrisisAlertOpen(true);
+        setIsSubmitting(false);
+        return;
+      }
+
+      const bookResponse = await axios.post('/api/assessment/generate-book', { answers: submittedAnswers });
+      if (!bookResponse.data.success) {
+        throw new Error(bookResponse.data.message || 'Assessment submission failed');
       }
       if (draftKey) {
         try {
@@ -466,6 +479,13 @@ export default function AssessmentQuestionnaire({ onComplete }) {
           </button>
         </nav>
       </article>
+
+      {/* 🚨 نافذة الطوارئ المنبثقة */}
+      <CrisisAlertModal 
+        isOpen={isCrisisAlertOpen} 
+        onClose={() => setIsCrisisAlertOpen(false)} 
+        helplineNumber="911 / 999" 
+      />
     </section>
   );
 }

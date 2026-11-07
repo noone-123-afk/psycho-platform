@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const TOKEN_KEY = 'soulCompassToken';
 
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || '';
+
 axios.interceptors.request.use((config) => {
   const token = sessionStorage.getItem(TOKEN_KEY);
   if (token) {

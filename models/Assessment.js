@@ -24,6 +24,7 @@ const AssessmentSchema = new mongoose.Schema({
   bookContentRaw: { type: Object }, // حفظ نص الكتاب ككائن لتسهيل التعديل من الإدارة قبل الاعتماد
   isPaid: { type: Boolean, default: false }, // حالة الدفع
   paypalOrderId: { type: String, index: true },
+  paypalCaptureId: { type: String },
   paidAt: { type: Date },
   deliveryEmailSent: { type: Boolean, default: false },
   deliveryComplete: { type: Boolean, default: false },

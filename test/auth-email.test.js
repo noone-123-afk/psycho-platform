@@ -9,6 +9,7 @@ const {
     buildVerificationUrl,
     escapeHtml,
     sendTrackedEmail,
+    sendScheduledFollowupReminderEmail,
     sendVerificationEmail
 } = require('../services/emailService');
 
@@ -41,7 +42,9 @@ test('verification URLs use the configured origin and escape HTML values', () =>
 test('email delivery attempts record sent and failed outcomes without storing content', async () => {
     const originalCreateTransport = nodemailer.createTransport;
     const originalCreateLog = EmailLog.create;
+    const originalSendGridApiKey = process.env.SENDGRID_API_KEY;
     const records = [];
+    delete process.env.SENDGRID_API_KEY;
     process.env.SMTP_HOST = 'smtp.example.test';
     process.env.SMTP_PORT = '587';
     process.env.SMTP_USER = 'sender@example.test';
@@ -75,6 +78,77 @@ test('email delivery attempts record sent and failed outcomes without storing co
     } finally {
         nodemailer.createTransport = originalCreateTransport;
         EmailLog.create = originalCreateLog;
+        if (originalSendGridApiKey === undefined) delete process.env.SENDGRID_API_KEY;
+        else process.env.SENDGRID_API_KEY = originalSendGridApiKey;
+    }
+});
+
+test('SendGrid sends tracked messages and PDF attachments without logging message content', async () => {
+    const originalFetch = global.fetch;
+    const originalCreateLog = EmailLog.create;
+    const originalFindLog = EmailLog.findOne;
+    const originalCreateTransport = nodemailer.createTransport;
+    const originalSendGridApiKey = process.env.SENDGRID_API_KEY;
+    const originalFromEmail = process.env.FROM_EMAIL;
+    const records = [];
+    let request;
+    process.env.SENDGRID_API_KEY = 'test-sendgrid-key';
+    process.env.FROM_EMAIL = 'sender@example.test';
+    global.fetch = async (url, options) => {
+        request = { url, options };
+        return { ok: true, status: 202 };
+    };
+    EmailLog.create = async (record) => { records.push(record); };
+    EmailLog.findOne = () => ({ lean: async () => null });
+
+    try {
+        await sendTrackedEmail({
+            to: 'recipient@example.test',
+            subject: 'Report ready',
+            kind: 'book_ready',
+            idempotencyKey: 'sendgrid-test-report',
+            text: 'private message',
+            html: '<p>private message</p>',
+            replyTo: 'reply@example.test',
+            attachments: [{
+                filename: 'report.pdf',
+                content: Buffer.from('fake-pdf-content'),
+                contentType: 'application/pdf'
+            }]
+        });
+
+        assert.equal(request.url, 'https://api.sendgrid.com/v3/mail/send');
+        assert.equal(request.options.headers.authorization, 'Bearer test-sendgrid-key');
+        const payload = JSON.parse(request.options.body);
+        assert.deepEqual(payload.personalizations[0].to, [{ email: 'recipient@example.test' }]);
+        assert.equal(payload.reply_to.email, 'reply@example.test');
+        assert.equal(payload.attachments[0].content, Buffer.from('fake-pdf-content').toString('base64'));
+        assert.equal(records[0].status, 'sent');
+        assert.equal(Object.hasOwn(records[0], 'text'), false);
+        assert.equal(JSON.stringify(records).includes('test-sendgrid-key'), false);
+
+        global.fetch = async () => ({ ok: false, status: 401 });
+        nodemailer.createTransport = () => {
+            throw new Error('SendGrid failures must not fall back to SMTP');
+        };
+        await assert.rejects(sendTrackedEmail({
+            to: 'recipient@example.test',
+            subject: 'Failure',
+            kind: 'unit_test',
+            text: 'private message'
+        }), /status 401/);
+        assert.equal(records[1].status, 'failed');
+        assert.equal(records[1].errorCode, 'SENDGRID_HTTP_401');
+        assert.equal(Object.hasOwn(records[1], 'text'), false);
+    } finally {
+        global.fetch = originalFetch;
+        EmailLog.create = originalCreateLog;
+        EmailLog.findOne = originalFindLog;
+        nodemailer.createTransport = originalCreateTransport;
+        if (originalSendGridApiKey === undefined) delete process.env.SENDGRID_API_KEY;
+        else process.env.SENDGRID_API_KEY = originalSendGridApiKey;
+        if (originalFromEmail === undefined) delete process.env.FROM_EMAIL;
+        else process.env.FROM_EMAIL = originalFromEmail;
     }
 });
 
@@ -149,6 +223,45 @@ test('successfully sent idempotent messages are not delivered twice', async () =
         assert.equal(sentMessages.length, 1);
         assert.equal(storedLogs.length, 1);
         assert.equal(storedLogs[0].idempotencyKey, message.idempotencyKey);
+    } finally {
+        nodemailer.createTransport = originalCreateTransport;
+        EmailLog.create = originalCreateLog;
+        EmailLog.findOne = originalFindLog;
+    }
+});
+
+test('scheduled follow-up reminder emails link to the follow-up page without health details', async () => {
+    const originalCreateTransport = nodemailer.createTransport;
+    const originalCreateLog = EmailLog.create;
+    const originalFindLog = EmailLog.findOne;
+    let outgoingMessage;
+    let deliveryLog;
+    process.env.SMTP_HOST = 'smtp.example.test';
+    process.env.SMTP_PORT = '587';
+    process.env.SMTP_USER = 'sender@example.test';
+    process.env.SMTP_PASSWORD = 'test-password';
+    process.env.FROM_EMAIL = 'sender@example.test';
+    process.env.FRONTEND_URL = 'https://example.test';
+    nodemailer.createTransport = () => ({
+        sendMail: async (message) => { outgoingMessage = message; }
+    });
+    EmailLog.create = async (record) => { deliveryLog = record; };
+    EmailLog.findOne = () => ({ lean: async () => null });
+    try {
+        await sendScheduledFollowupReminderEmail({
+            email: 'person@example.test',
+            name: 'Person',
+            userId: '507f1f77bcf86cd799439011',
+            language: 'en',
+            followupNumber: 2,
+            followupId: '507f1f77bcf86cd799439012'
+        });
+        assert.match(outgoingMessage.html, /Follow-up assessment 2 of 3 is now available/);
+        assert.match(outgoingMessage.html, /https:\/\/example\.test\/followup/);
+        assert.match(outgoingMessage.text, /https:\/\/example\.test\/followup/);
+        assert.doesNotMatch(outgoingMessage.html, /PHQ|GAD|score|health/i);
+        assert.equal(deliveryLog.kind, 'followup_assessment_reminder');
+        assert.equal(deliveryLog.idempotencyKey, 'followup-reminder-507f1f77bcf86cd799439012');
     } finally {
         nodemailer.createTransport = originalCreateTransport;
         EmailLog.create = originalCreateLog;
