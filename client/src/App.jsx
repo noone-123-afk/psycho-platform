@@ -1,35 +1,34 @@
-import React, { useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom'
-import { useTranslation } from 'react-i18next'
-import Home from './pages/Home'
-import Assessment from './pages/Assessment'
-import AdminDashboard from './pages/AdminDashboard'
-import AdminCrisisIncidents from './pages/AdminCrisisIncidents'
-import AdminCrisisIncidentDetails from './pages/AdminCrisisIncidentDetails'
-import FollowupList from './pages/FollowupList'
-import FollowupSubmit from './pages/FollowupSubmit'
-import FollowupProgress from './pages/FollowupProgress'
-import CrisisPage from './pages/Crisis'
-import Account from './pages/Account'
-import NotificationSettings from './pages/NotificationSettings'
-import VerifyEmail from './pages/VerifyEmail'
-import Footer from './components/Footer'
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
-// ✅ استيراد موحد للصفحات القانونية (تم حذف التكرار القديم)
-import { DisclaimerPage, PrivacyPage, TermsPage } from './pages/LegalPages'
+// استيراد الصفحات
+import Home from './pages/Home';
+import Assessment from './pages/Assessment';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminCrisisIncidents from './pages/AdminCrisisIncidents';
+import AdminCrisisIncidentDetails from './pages/AdminCrisisIncidentDetails';
+import FollowupList from './pages/FollowupList';
+import FollowupSubmit from './pages/FollowupSubmit';
+import FollowupProgress from './pages/FollowupProgress';
+import CrisisPage from './pages/Crisis';
+import Account from './pages/Account';
+import NotificationSettings from './pages/NotificationSettings';
+import VerifyEmail from './pages/VerifyEmail';
+import Footer from './components/Footer';
 
-// مكون مساعد لتحديث لغة واتجاه الصفحة ومراقبة التنقل
+// استيراد الصفحات القانونية (موحد)
+import { DisclaimerPage, PrivacyPage, TermsPage } from './pages/LegalPages';
+
 const AppWrapper = () => {
   const { i18n, t } = useTranslation();
   const location = useLocation();
 
   useEffect(() => {
-    // تطبيق الاتجاه الصحيح بناءً على اللغة
     document.dir = i18n.language === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = i18n.language;
   }, [i18n.language]);
 
-  // العودة لأعلى الصفحة عند التبديل بين الروابط
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
@@ -45,12 +44,9 @@ const AppWrapper = () => {
         <Route path="/followup" element={<FollowupList />} />
         <Route path="/followup/submit" element={<FollowupSubmit />} />
         <Route path="/followup/progress" element={<FollowupProgress />} />
-        
-        {/* ✅ مسارات الصفحات القانونية (تم إزالة التكرار) */}
         <Route path="/legal/disclaimer" element={<DisclaimerPage />} />
         <Route path="/legal/privacy" element={<PrivacyPage />} />
         <Route path="/legal/terms" element={<TermsPage />} />
-        
         <Route path="/crisis" element={<CrisisPage />} />
         <Route path="/account" element={<Account />} />
         <Route path="/settings" element={<NotificationSettings />} />
@@ -77,4 +73,18 @@ const AppWrapper = () => {
           🆘 {t('crisisEmergencyLink')}
         </Link>
       )}
+      
       <Footer />
+    </div>
+  );
+};
+
+function App() {
+  return (
+    <Router>
+      <AppWrapper />
+    </Router>
+  );
+}
+
+export default App;
